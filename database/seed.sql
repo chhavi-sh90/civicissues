@@ -39,15 +39,15 @@ INSERT INTO categories (name, slug, default_department_id, default_priority) VAL
 -- ---------------------------------------------------------------------
 INSERT INTO users (full_name, email, phone, password_hash, role, department_id) VALUES
 ('System Admin', 'admin@civicconnect.gov', '9999900000',
-  '$2b$10$CwTycUXWue0Thq9StjUM0uJ8i6nCJMzC5b9NwJf5N0zQZfL6qwJTa', 'admin', NULL),
+  '$2b$10$ap9YlBgMRyPtZgsghXjnYOOW5rOxaSuk9t0GIECfFaI4JiDpLERaS', 'admin', NULL),
 ('Ramesh Kumar', 'ramesh.roads@civicconnect.gov', '9999900001',
-  '$2b$10$CwTycUXWue0Thq9StjUM0uJ8i6nCJMzC5b9NwJf5N0zQZfL6qwJTa', 'department_official', 1),
+  '$2b$10$ap9YlBgMRyPtZgsghXjnYOOW5rOxaSuk9t0GIECfFaI4JiDpLERaS', 'department_official', 1),
 ('Sunita Verma', 'sunita.sanitation@civicconnect.gov', '9999900002',
-  '$2b$10$CwTycUXWue0Thq9StjUM0uJ8i6nCJMzC5b9NwJf5N0zQZfL6qwJTa', 'department_official', 2),
+  '$2b$10$ap9YlBgMRyPtZgsghXjnYOOW5rOxaSuk9t0GIECfFaI4JiDpLERaS', 'department_official', 2),
 ('Bhumi Sharma', 'bhumi.citizen@example.com', '9999900003',
-  '$2b$10$CwTycUXWue0Thq9StjUM0uJ8i6nCJMzC5b9NwJf5N0zQZfL6qwJTa', 'citizen', NULL),
+  '$2b$10$ap9YlBgMRyPtZgsghXjnYOOW5rOxaSuk9t0GIECfFaI4JiDpLERaS', 'citizen', NULL),
 ('Chahat Chaudhary', 'chahat.citizen@example.com', '9999900004',
-  '$2b$10$CwTycUXWue0Thq9StjUM0uJ8i6nCJMzC5b9NwJf5N0zQZfL6qwJTa', 'citizen', NULL);
+  '$2b$10$ap9YlBgMRyPtZgsghXjnYOOW5rOxaSuk9t0GIECfFaI4JiDpLERaS', 'citizen', NULL);
 
 -- ---------------------------------------------------------------------
 -- Sample complaint (Submitted, unassigned) — for testing the full

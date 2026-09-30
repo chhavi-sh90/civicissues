@@ -1,211 +1,145 @@
-# Civic Connect — Backend
+# CivicConnect
 
-Crowdsourced Civic Issue Reporting and Resolution System.
-REST API backend (Node.js + Express + MySQL) for the ABESIT B.Tech CSE(DS) project by Bhumi Sharma, Chhavi Sharma and Chahat Chaudhary.
+CivicConnect is a full-stack civic issue reporting and resolution website. Citizens can register, report an issue with photos and map coordinates, and track its status. Department officials and administrators see role-scoped complaint data through the same portal.
 
----
+The project combines:
 
-## 1. Prerequisites (Windows)
+- React + Vite frontend, based on [Bhumi147/CivicConnect](https://github.com/Bhumi147/CivicConnect)
+- Node.js + Express REST API
+- MySQL database
+- JWT authentication and role-based access control
+- Leaflet/OpenStreetMap location picker and issue map
 
-Install these first:
+## Project structure
 
-1. **Node.js LTS (18+)** — https://nodejs.org (download the LTS installer, click through defaults)
-2. **MySQL Community Server 8.x** — https://dev.mysql.com/downloads/installer/ (during setup, set a root password you'll remember)
-3. **VS Code** — https://code.visualstudio.com
-4. **Postman** — https://www.postman.com/downloads/
-5. **Git** (optional, for version control) — https://git-scm.com/download/win
-
-Verify installs by opening PowerShell and running:
-```powershell
-node -v
-npm -v
-mysql --version
+```text
+.
+|-- frontend/          React website
+|-- src/               Express API and server
+|-- database/          MySQL schema and seed data
+|-- postman/           API collection
+|-- tests/             Backend tests
+|-- uploads/           Local complaint images (ignored by Git)
+|-- API_CONTRACT.md    REST API reference
+`-- package.json       Full-stack scripts
 ```
 
----
+## Requirements
 
-## 2. Project folder
+- Node.js 20 or newer
+- npm
+- MySQL 8
 
-If you're reading this, your project folder should already look like:
-```
-backend\
-├── database\
-├── postman\
-├── src\
-├── tests\
-├── uploads\
-├── .env.example
-├── .gitignore
-├── API_CONTRACT.md
-├── package.json
-└── README.md
-```
+## 1. Install dependencies
 
----
-
-## 3. Install dependencies
-
-Open the `backend` folder in VS Code (`File > Open Folder`), then open a terminal in VS Code (`` Ctrl+` ``) and run:
+From the project root:
 
 ```powershell
 npm install
+npm run frontend:install
 ```
 
-This installs Express, MySQL2, JWT, bcrypt, Joi, multer, firebase-admin, etc. from `package.json`.
+## 2. Create the database
 
-**Optional dependency**: if you plan to use cloud storage (`UPLOAD_STRATEGY=cloud` in `.env`) instead of local disk storage, also run:
-```powershell
-npm install @aws-sdk/client-s3
-```
-This is NOT required for local development — local file storage works out of the box.
-
----
-
-## 4. Create the MySQL database
-
-Open a terminal and log into MySQL:
-```powershell
-mysql -u root -p
-```
-Enter your MySQL root password, then run the schema and seed files. Easiest way — exit the MySQL prompt (`exit`) and run from PowerShell instead:
+Run the schema first and the seed data second:
 
 ```powershell
 mysql -u root -p < database\schema.sql
 mysql -u root -p < database\seed.sql
 ```
 
-This creates the `civic_connect` database, all 9 tables, and inserts:
-- 1 admin, 2 department officials, 2 citizens (all with password `Password@123`)
-- 5 departments, 6 categories
-- 1 sample complaint already in `submitted` status
+The seed creates departments, categories, demo users, and a sample complaint.
 
-Verify it worked:
-```powershell
-mysql -u root -p -e "USE civic_connect; SHOW TABLES;"
+## 3. Create the local environment file
+
+Create a `.env` file in the project root. Environment files are intentionally ignored by Git.
+
+```dotenv
+PORT=5000
+NODE_ENV=development
+
+DB_HOST=127.0.0.1
+DB_PORT=3306
+DB_USER=root
+DB_PASSWORD=your_mysql_password
+DB_NAME=civic_connect
+DB_CONNECTION_LIMIT=10
+
+JWT_SECRET=replace_with_a_long_random_secret
+JWT_EXPIRES_IN=7d
+BCRYPT_SALT_ROUNDS=10
+
+CORS_ALLOWED_ORIGINS=http://localhost:5173
+UPLOAD_STRATEGY=local
+MAX_UPLOAD_SIZE_MB=5
+LOCAL_UPLOAD_DIR=uploads
 ```
-You should see 9 tables listed.
 
----
+Firebase, cloud-storage, Google Maps, and ML integration variables are optional. The React website uses OpenStreetMap and does not require a Google Maps key.
 
-## 5. Configure environment variables
+## 4. Run in development
 
-Copy the example file:
-```powershell
-copy .env.example .env
-```
+Use two terminals from the project root.
 
-Open `.env` in VS Code and set at minimum:
-```
-DB_PASSWORD=your_actual_mysql_root_password
-JWT_SECRET=any_long_random_string_here
-```
-
-Everything else can stay at its default for local development. **Firebase, cloud storage, Google Maps, and ML endpoint variables can all be left blank** — the app runs fully without them, just with those specific features in fallback mode (explained in Section 9).
-
-**Never commit your real `.env` file** — it's already in `.gitignore`.
-
----
-
-## 6. Start the server
+Terminal 1 — API server:
 
 ```powershell
 npm run dev
 ```
 
-You should see:
-```
-[INFO]  ... - MySQL connected: 127.0.0.1:3306/civic_connect
-[INFO]  ... - Civic Connect API listening on http://localhost:5000
-[INFO]  ... - Environment: development
-[INFO]  ... - Upload strategy: local
-[INFO]  ... - Firebase configured: false
-```
-
-Test it's alive by opening `http://localhost:5000/health` in a browser — you should see `{"success":true,"message":"Civic Connect API is running"}`.
-
-If it fails to start, see Section 10 (Troubleshooting).
-
----
-
-## 7. Testing endpoints in Postman
-
-1. Open Postman → **Import** → select `postman\CivicConnect.postman_collection.json`
-2. Open the collection → folder **"1. Auth"**
-3. Run **"Login as Admin (seed user)"**, then **"Login as Department Official"**, then **"Login as Citizen"** — each automatically saves its JWT into the collection's variables (`adminToken`, `officialToken`, `citizenToken`), so every other request in the collection is pre-authenticated.
-4. Work through folders **2 → 8** in order — folder **"4. Complaints" → "Create Complaint"** auto-saves the new `complaintId`, which folder **"5. Assignment Workflow"** and **"6. Feedback"** then use automatically.
-
-This walks through the entire flow: register → login → submit complaint with photo+GPS → admin assigns to official → official updates status through to resolved → citizen leaves feedback → admin views analytics.
-
----
-
-## 8. Running automated tests
+Terminal 2 — React development server:
 
 ```powershell
-npm test
+npm run dev:frontend
 ```
 
-This runs `tests\auth.test.js` (registration, login, protected-route and role-check tests) against your real local database. Make sure the server is NOT already running on the same port when you run tests, and that your `.env` is configured — `npm test` starts its own instance of the Express app in-process (via supertest), it does not need `npm run dev` to be running separately.
+Open http://localhost:5173. Vite proxies `/api`, `/uploads`, and `/health` to the backend on port 5000.
 
----
+## 5. Build and run as one website
 
-## 9. Connecting to Flutter / React.js
+```powershell
+npm run build
+npm start
+```
 
-The backend is a stateless REST API — either client calls the same endpoints.
+Open http://localhost:5000. Express serves the compiled React app and the REST API from one process.
 
-- **Base URL**: `http://localhost:5000/api` (from an Android emulator, use `http://10.0.2.2:5000/api`; from a physical phone on the same Wi-Fi, use your PC's local IP, e.g. `http://192.168.1.5:5000/api`)
-- **Auth**: store the JWT returned by `/auth/login` (e.g. in `flutter_secure_storage` or a React `httpOnly`-cookie/local state pattern) and send it as `Authorization: Bearer <token>` on every subsequent request.
-- **CORS**: add your React dev server's origin (e.g. `http://localhost:3000`) to `CORS_ALLOWED_ORIGINS` in `.env`. Flutter mobile apps aren't subject to browser CORS, so no change is needed there.
-- **Image uploads**: send `multipart/form-data` with field name `images` (array, complaint creation) or `image` (single, resolution proof) — see `API_CONTRACT.md`.
-- Full endpoint list, request/response shapes, and roles: see `API_CONTRACT.md`.
+The production build output is generated in `frontend/dist` and is not committed to Git.
 
----
+## Available scripts
 
-## 10. Troubleshooting common errors
+| Command | Purpose |
+| --- | --- |
+| `npm run dev` | Start the backend with nodemon |
+| `npm run dev:frontend` | Start the Vite frontend |
+| `npm run frontend:install` | Install frontend packages |
+| `npm run build` | Install and compile the frontend |
+| `npm start` | Start the production/full-stack server |
+| `npm test` | Run backend Jest tests |
+| `npm --prefix frontend run lint` | Lint the React code |
 
-| Error | Cause | Fix |
-|---|---|---|
-| `Error: Missing required environment variable: JWT_SECRET` | `.env` not created or missing a value | Run Step 5 again; make sure `.env` (not `.env.example`) exists in the project root |
-| `MySQL connection failed: ER_ACCESS_DENIED_ERROR` | Wrong `DB_PASSWORD` in `.env` | Double-check your MySQL root password |
-| `MySQL connection failed: ECONNREFUSED` | MySQL service isn't running | Open "Services" app on Windows, find "MySQL80", start it |
-| `Error: connect ECONNREFUSED` on port 5000 | Server isn't running, or crashed on startup | Check the terminal running `npm run dev` for the actual error above this line |
-| `EADDRINUSE: address already in use :::5000` | Another process is already using port 5000 | Change `PORT` in `.env`, or stop the other process |
-| Postman requests return `401 Unauthorized` | You didn't run the Login requests first, or the token expired | Re-run the relevant Login request in folder "1. Auth" |
-| `413` or file upload errors | Image too large or wrong file type | Only JPG/PNG/WEBP under `MAX_UPLOAD_SIZE_MB` (default 5MB) are accepted |
-| `npm install` fails with permission errors | Rare on Windows, usually antivirus/folder permissions | Try running PowerShell as Administrator, or move the project out of OneDrive-synced folders if OneDrive is locking files |
+## Demo accounts
 
----
+After importing `database/seed.sql`, all seeded users use password `Password@123`.
 
-## 11. What's implemented vs. what needs external credentials or a trained model
+| Role | Email |
+| --- | --- |
+| Admin | `admin@civicconnect.gov` |
+| Road official | `ramesh.roads@civicconnect.gov` |
+| Sanitation official | `sunita.sanitation@civicconnect.gov` |
+| Citizen | `bhumi.citizen@example.com` |
+| Citizen | `chahat.citizen@example.com` |
 
-**Fully implemented and testable with zero external accounts:**
-- Registration, login, JWT auth, RBAC (citizen/department_official/admin)
-- Complaint creation with photo upload (local disk storage), GPS coordinates, rule-based auto-categorization
-- Full status workflow with server-side transition validation and audit history
-- Assignment/reassignment with history
-- In-app notifications (visible via `GET /api/notifications`)
-- Feedback on resolved complaints
-- Admin/official analytics dashboard (aggregated data only)
-- Role-scoped data access (citizens see only their own; officials only their assignments; admins see all)
+Seed credentials are for local demonstrations only and must be changed before deployment.
 
-**Implemented, but requires YOU to provide real credentials to become fully "live":**
-- **Push notifications (FCM)**: the code is a real, working Firebase Admin SDK integration — but without `FIREBASE_PROJECT_ID` / `FIREBASE_CLIENT_EMAIL` / `FIREBASE_PRIVATE_KEY` in `.env`, every push is honestly logged as `not_configured` rather than faked as sent. Get these from a Firebase project's Service Account settings.
-- **Cloud image storage**: local disk storage works immediately; S3-compatible cloud storage requires `npm install @aws-sdk/client-s3` plus real bucket credentials in `.env`. Without them, the app correctly uses local storage.
-- **Google Maps API**: the backend stores and validates latitude/longitude; it does not call the Maps API server-side. Your Flutter/React client uses `GOOGLE_MAPS_API_KEY` directly for map rendering/pin-drop UI — that key never needs to touch this backend.
+## Main website flows
 
-**Explicitly NOT a trained ML model:**
-- `categorizationService.js` uses keyword-matching rules, not a trained classifier. If you train one later, point `ML_CATEGORIZATION_ENDPOINT` in `.env` at an HTTP endpoint accepting `{ title, description }` and returning `{ category_slug }` — the service will call it automatically and fall back to rules only if it's unreachable.
+- Register and log in through the real authentication API
+- Restore and validate the saved session
+- Load categories from MySQL
+- Submit complaints with description, address, photos, latitude, and longitude
+- View role-scoped complaints and live status counts
+- Plot accessible complaints on an OpenStreetMap map
+- Serve unknown API routes as JSON while supporting the React single-page app
 
----
-
-## 12. Default seed login credentials (for demo/testing only — change or remove for any real deployment)
-
-| Role | Email | Password |
-|---|---|---|
-| Admin | admin@civicconnect.gov | Password@123 |
-| Official (Roads) | ramesh.roads@civicconnect.gov | Password@123 |
-| Official (Sanitation) | sunita.sanitation@civicconnect.gov | Password@123 |
-| Citizen | bhumi.citizen@example.com | Password@123 |
-| Citizen | chahat.citizen@example.com | Password@123 |
-#   c i v i c i s s u e s  
- #   c i v i c i s s u e s  
- 
+See [API_CONTRACT.md](API_CONTRACT.md) for all endpoints and role permissions.

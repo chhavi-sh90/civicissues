@@ -1,11 +1,14 @@
 {
   "name": "civic-connect-backend",
   "version": "1.0.0",
-  "description": "Crowdsourced Civic Issue Reporting and Resolution System - REST API backend",
+  "description": "Full-stack civic issue reporting and resolution website",
   "main": "src/server.js",
   "scripts": {
     "start": "node src/server.js",
     "dev": "nodemon src/server.js",
+    "dev:frontend": "npm --prefix frontend run dev",
+    "frontend:install": "npm --prefix frontend install",
+    "build": "npm run frontend:install && npm --prefix frontend run build",
     "test": "jest --runInBand"
   },
   "license": "MIT",
