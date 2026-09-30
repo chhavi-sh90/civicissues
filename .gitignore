@@ -29,6 +29,3 @@ coverage/
 # Build artifacts
 dist/
 build/
-
-# Local environment templates containing machine-specific values
-.env.example
