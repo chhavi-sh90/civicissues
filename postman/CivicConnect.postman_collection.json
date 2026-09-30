@@ -1,0 +1,468 @@
+{
+  "info": {
+    "name": "Civic Connect API",
+    "description": "Ready-to-run requests for the Civic Connect backend. Run 'Auth' folder first (Login as Admin/Official/Citizen) - each login request auto-saves its token into the collection variables so every other request just works.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:5000/api" },
+    { "key": "adminToken", "value": "" },
+    { "key": "officialToken", "value": "" },
+    { "key": "citizenToken", "value": "" },
+    { "key": "complaintId", "value": "" },
+    { "key": "complaintRefCode", "value": "" },
+    { "key": "categoryId", "value": "1" },
+    { "key": "departmentId", "value": "1" },
+    { "key": "officialUserId", "value": "2" }
+  ],
+  "item": [
+    {
+      "name": "1. Auth",
+      "item": [
+        {
+          "name": "Register Citizen",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/auth/register",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"full_name\": \"Test Citizen\",\n  \"email\": \"test.citizen@example.com\",\n  \"phone\": \"9999911111\",\n  \"password\": \"Password@123\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Login as Admin (seed user)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const data = pm.response.json();",
+                  "if (data.data && data.data.token) { pm.collectionVariables.set('adminToken', data.data.token); }",
+                  "pm.test('Login succeeded', () => pm.response.code === 200);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/auth/login",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@civicconnect.gov\",\n  \"password\": \"Password@123\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Login as Department Official (seed user - Roads)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const data = pm.response.json();",
+                  "if (data.data && data.data.token) { pm.collectionVariables.set('officialToken', data.data.token); }"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/auth/login",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"ramesh.roads@civicconnect.gov\",\n  \"password\": \"Password@123\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Login as Citizen (seed user)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const data = pm.response.json();",
+                  "if (data.data && data.data.token) { pm.collectionVariables.set('citizenToken', data.data.token); }"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/auth/login",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"bhumi.citizen@example.com\",\n  \"password\": \"Password@123\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Get Current User (me)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{citizenToken}}" }],
+            "url": "{{baseUrl}}/auth/me"
+          }
+        }
+      ]
+    },
+    {
+      "name": "2. Users",
+      "item": [
+        {
+          "name": "Get My Profile",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{citizenToken}}" }],
+            "url": "{{baseUrl}}/users/profile"
+          }
+        },
+        {
+          "name": "Update My Profile",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{citizenToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": "{{baseUrl}}/users/profile",
+            "body": { "mode": "raw", "raw": "{\n  \"full_name\": \"Bhumi Sharma Updated\"\n}" }
+          }
+        },
+        {
+          "name": "Admin: Create Department Official",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": "{{baseUrl}}/users",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"full_name\": \"New Official\",\n  \"email\": \"new.official@civicconnect.gov\",\n  \"phone\": \"9999955555\",\n  \"password\": \"Password@123\",\n  \"role\": \"department_official\",\n  \"department_id\": {{departmentId}}\n}"
+            }
+          }
+        },
+        {
+          "name": "Admin: List Users",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+            "url": "{{baseUrl}}/users?page=1&limit=20"
+          }
+        },
+        {
+          "name": "Citizen tries Admin route (expect 403)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{citizenToken}}" }],
+            "url": "{{baseUrl}}/users"
+          }
+        }
+      ]
+    },
+    {
+      "name": "3. Departments & Categories",
+      "item": [
+        {
+          "name": "List Departments",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{citizenToken}}" }],
+            "url": "{{baseUrl}}/departments"
+          }
+        },
+        {
+          "name": "List Categories",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{citizenToken}}" }],
+            "url": "{{baseUrl}}/categories"
+          }
+        },
+        {
+          "name": "Admin: Create Department",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": "{{baseUrl}}/departments",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Parks & Recreation\",\n  \"description\": \"Handles public parks\",\n  \"contact_email\": \"parks@civicconnect.gov\"\n}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "4. Complaints",
+      "item": [
+        {
+          "name": "Create Complaint (with photo)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const data = pm.response.json();",
+                  "if (data.data && data.data.complaint) {",
+                  "  pm.collectionVariables.set('complaintId', data.data.complaint.id);",
+                  "  pm.collectionVariables.set('complaintRefCode', data.data.complaint.reference_code);",
+                  "}",
+                  "pm.test('Complaint created', () => pm.response.code === 201);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{citizenToken}}" }],
+            "url": "{{baseUrl}}/complaints",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "title", "value": "Broken streetlight near park entrance", "type": "text" },
+                { "key": "description", "value": "The streetlight has been off for a week, making the area unsafe at night.", "type": "text" },
+                { "key": "category_id", "value": "{{categoryId}}", "type": "text" },
+                { "key": "latitude", "value": "28.6139", "type": "text" },
+                { "key": "longitude", "value": "77.2090", "type": "text" },
+                { "key": "address", "value": "Central Park Entrance, Ward 5", "type": "text" },
+                { "key": "images", "type": "file", "src": [] }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get My Complaints",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{citizenToken}}" }],
+            "url": "{{baseUrl}}/complaints/my?page=1&limit=10"
+          }
+        },
+        {
+          "name": "Get Complaint by ID",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{citizenToken}}" }],
+            "url": "{{baseUrl}}/complaints/{{complaintId}}"
+          }
+        },
+        {
+          "name": "List All Complaints (Admin view)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+            "url": "{{baseUrl}}/complaints?page=1&limit=20"
+          }
+        },
+        {
+          "name": "Other Citizen tries to view (expect 403)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{officialToken}}" }],
+            "url": "{{baseUrl}}/complaints/{{complaintId}}"
+          }
+        },
+        {
+          "name": "Get Complaint Status History",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{citizenToken}}" }],
+            "url": "{{baseUrl}}/complaints/{{complaintId}}/history"
+          }
+        }
+      ]
+    },
+    {
+      "name": "5. Assignment Workflow",
+      "item": [
+        {
+          "name": "Admin: Assign Complaint to Official",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": "{{baseUrl}}/assignments",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"complaint_id\": {{complaintId}},\n  \"official_id\": {{officialUserId}},\n  \"notes\": \"Please inspect within 48 hours\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Official: View Assigned Complaints",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{officialToken}}" }],
+            "url": "{{baseUrl}}/complaints/assigned?page=1&limit=10"
+          }
+        },
+        {
+          "name": "Official: Update Status to in_progress",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{officialToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": "{{baseUrl}}/complaints/{{complaintId}}/status",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"new_status\": \"in_progress\",\n  \"remarks\": \"Team dispatched to site\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Official: Update Status to resolved",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{officialToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": "{{baseUrl}}/complaints/{{complaintId}}/status",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"new_status\": \"resolved\",\n  \"remarks\": \"Streetlight replaced and tested\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Invalid transition test (submitted -> resolved, expect 400)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{officialToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": "{{baseUrl}}/complaints/1/status",
+            "body": { "mode": "raw", "raw": "{\n  \"new_status\": \"resolved\"\n}" }
+          }
+        }
+      ]
+    },
+    {
+      "name": "6. Feedback",
+      "item": [
+        {
+          "name": "Citizen: Submit Feedback (after resolved)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{citizenToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": "{{baseUrl}}/feedback",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"complaint_id\": {{complaintId}},\n  \"rating\": 5,\n  \"comment\": \"Fixed quickly, thank you!\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Get Feedback for Complaint",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{citizenToken}}" }],
+            "url": "{{baseUrl}}/feedback/complaint/{{complaintId}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "7. Notifications",
+      "item": [
+        {
+          "name": "Get My Notifications",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{citizenToken}}" }],
+            "url": "{{baseUrl}}/notifications?page=1&limit=20"
+          }
+        },
+        {
+          "name": "Mark All Notifications Read",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Authorization", "value": "Bearer {{citizenToken}}" }],
+            "url": "{{baseUrl}}/notifications/read-all"
+          }
+        }
+      ]
+    },
+    {
+      "name": "8. Analytics (Admin / Official)",
+      "item": [
+        {
+          "name": "Dashboard Summary",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+            "url": "{{baseUrl}}/analytics/summary"
+          }
+        },
+        {
+          "name": "By Category",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+            "url": "{{baseUrl}}/analytics/by-category"
+          }
+        },
+        {
+          "name": "By Department",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+            "url": "{{baseUrl}}/analytics/by-department"
+          }
+        },
+        {
+          "name": "Average Resolution Time",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+            "url": "{{baseUrl}}/analytics/resolution-time"
+          }
+        },
+        {
+          "name": "Trends (by day)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+            "url": "{{baseUrl}}/analytics/trends?group_by=day"
+          }
+        },
+        {
+          "name": "Hotspots",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+            "url": "{{baseUrl}}/analytics/hotspots"
+          }
+        }
+      ]
+    },
+    {
+      "name": "9. Health Check",
+      "item": [
+        {
+          "name": "GET /health",
+          "request": { "method": "GET", "url": "http://localhost:5000/health" }
+        }
+      ]
+    }
+  ]
+}
