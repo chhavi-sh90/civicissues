@@ -35,12 +35,13 @@ const updatePassword = asyncHandler(async (req, res) => {
   return success(res, 200, 'Password updated successfully');
 });
 
-// GET /api/users  (admin)
+// GET /api/users (admins see all; officials see their department's user scope)
 const listUsers = asyncHandler(async (req, res) => {
   const { role, department_id, page, limit } = req.query;
   const result = await userModel.list({
     role,
     department_id,
+    scope_department_id: req.user.role === 'department_official' ? req.user.department_id : undefined,
     page: Number(page) || 1,
     limit: Number(limit) || 20,
   });

@@ -63,9 +63,27 @@ async function setActiveStatus(id, is_active) {
   return findById(id);
 }
 
-async function list({ role, department_id, page = 1, limit = 20 }) {
+async function list({ role, department_id, scope_department_id, page = 1, limit = 20 }) {
   const conditions = [];
   const values = [];
+  const selectValues = [];
+
+  let complaintCountExpression =
+    '(SELECT COUNT(*) FROM complaints c WHERE c.citizen_id = u.id)';
+
+  if (scope_department_id) {
+    conditions.push(`(
+      (u.role = 'department_official' AND u.department_id = ?)
+      OR (u.role = 'citizen' AND EXISTS (
+        SELECT 1 FROM complaints scoped_c
+        WHERE scoped_c.citizen_id = u.id AND scoped_c.department_id = ?
+      ))
+    )`);
+    values.push(scope_department_id, scope_department_id);
+    complaintCountExpression =
+      '(SELECT COUNT(*) FROM complaints c WHERE c.citizen_id = u.id AND c.department_id = ?)';
+    selectValues.push(scope_department_id);
+  }
 
   if (role) {
     conditions.push('u.role = ?');
@@ -83,12 +101,12 @@ async function list({ role, department_id, page = 1, limit = 20 }) {
     `SELECT u.id, u.full_name, u.email, u.phone, u.role, u.department_id,
             u.is_active, u.created_at, u.updated_at,
             dep.name AS department_name,
-            (SELECT COUNT(*) FROM complaints c WHERE c.citizen_id = u.id) AS complaint_count
+            ${complaintCountExpression} AS complaint_count
        FROM users u
        LEFT JOIN departments dep ON dep.id = u.department_id
        ${whereClause}
       ORDER BY u.created_at DESC LIMIT ? OFFSET ?`,
-    [...values, limit, offset]
+    [...selectValues, ...values, limit, offset]
   );
   const [countRows] = await pool.query(`SELECT COUNT(*) AS total FROM users u ${whereClause}`, values);
 

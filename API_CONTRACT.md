@@ -36,7 +36,7 @@ Note: citizens self-register via `/auth/register`. `department_official` and `ad
 | PUT | `/users/profile` | Any authenticated | `{ full_name?, phone? }` | 200, updated profile | 400, 401 |
 | PUT | `/users/profile/password` | Any authenticated | `{ current_password, new_password }` | 200 | 400, 401 (wrong current password) |
 | POST | `/users` | admin | `{ full_name, email, phone, password, role, department_id? }` | 201, created user | 400, 403, 409 |
-| GET | `/users` | admin | query: `role, department_id, page, limit` | 200, paginated list | 403 |
+| GET | `/users` | admin, department_official | query: `role, department_id, page, limit` | 200, paginated list; officials receive only their department's officials and related citizens | 403 |
 | PUT | `/users/:id/status` | admin | `{ is_active }` | 200 | 403, 404 |
 
 ## 3. Categories — `/api/categories`
@@ -114,10 +114,10 @@ Note: if Firebase Admin credentials are not configured in `.env`, push notificat
 |---|---|---|---|---|---|
 | GET | `/analytics/summary` | admin, department_official (scoped to own dept) | `from?, to?` | 200: totals, by-status counts | 401, 403 |
 | GET | `/analytics/by-category` | admin, department_official | `from?, to?` | 200: complaint counts per category | 401, 403 |
-| GET | `/analytics/by-department` | admin | `from?, to?` | 200: complaint counts per department | 401, 403 |
+| GET | `/analytics/by-department` | admin, department_official (scoped to own dept) | `from?, to?` | 200: complaint counts per department | 401, 403 |
 | GET | `/analytics/resolution-time` | admin, department_official | `from?, to?` | 200: avg resolution time (hours) overall + per category | 401, 403 |
-| GET | `/analytics/trends` | admin | `from?, to?, group_by=day\|week\|month` | 200: time series counts | 401, 403 |
-| GET | `/analytics/hotspots` | admin | `from?, to?` | 200: complaint counts grouped by rounded lat/lng (recurring-issue detection) | 401, 403 |
+| GET | `/analytics/trends` | admin, department_official (scoped to own dept) | `from?, to?, group_by=day\|week\|month` | 200: time series counts | 401, 403 |
+| GET | `/analytics/hotspots` | admin, department_official (scoped to own dept) | `from?, to?` | 200: complaint counts grouped by rounded lat/lng (recurring-issue detection) | 401, 403 |
 | GET | `/analytics/ai-analysis/:complaintId` | admin, department_official (own department) | — | 200: classification method/confidence, priority score, nearby duplicates, signals and recommendation | 401, 403, 404 |
 
 All analytics endpoints return only aggregated counts/averages — never raw citizen personal data — per your "authorized/aggregated data only" requirement.

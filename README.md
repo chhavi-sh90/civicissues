@@ -26,16 +26,16 @@ The project combines:
 - Changes an issue to Under Review, In Progress, Resolved, or Rejected
 - Sends a required update note, plus a rejection reason when applicable
 
-### Administrator intelligence
+### Authority intelligence
 
-The admin account also has the dashboard modules from the `member3-admin` frontend branch, connected to live backend data:
+Both administrator and department-official accounts have the dashboard modules from the `member3-admin` frontend branch, connected to live backend data. Department officials only receive data for their own department:
 
 - Complete complaint queue and map
 - Complaint-density heatmap
 - Date-filtered status, category, department, trend, and resolution analytics
 - AI-assisted category/risk analysis with transparent ML or rule-based method labels
 - Nearby duplicate detection and action recommendations
-- User directory with roles, departments, activity status, and report counts
+- Role-scoped user directory with roles, departments, activity status, and report counts
 
 Citizen registration never creates an authority account. Authority accounts are seeded for the demo or created by an administrator.
 
@@ -143,6 +143,7 @@ The production build output is generated in `frontend/dist` and is not committed
 | `npm run dev:frontend` | Start the Vite frontend |
 | `npm run frontend:install` | Install frontend packages |
 | `npm run build` | Install and compile the frontend |
+| `npm install` | Install backend dependencies and automatically build the deployable frontend |
 | `npm start` | Start the production/full-stack server |
 | `npm test` | Run backend Jest tests |
 | `npm --prefix frontend run lint` | Lint the React code |

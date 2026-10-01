@@ -1,6 +1,6 @@
 function Navbar({ page, setPage, user, onLogout }) {
   const isCitizen = user?.role === "citizen";
-  const isAdmin = user?.role === "admin";
+  const isAuthority = user?.role === "admin" || user?.role === "department_official";
 
   return (
     <aside className="sidebar">
@@ -27,7 +27,7 @@ function Navbar({ page, setPage, user, onLogout }) {
           <span aria-hidden="true">▤</span>{isCitizen ? "My Complaints" : "Complaints"}
         </button>
 
-        {isAdmin && (
+        {isAuthority && (
           <>
             <button className={page === "pending" ? "nav-item active" : "nav-item"} onClick={() => setPage("pending")}>
               <span aria-hidden="true">◷</span>Pending
@@ -45,9 +45,9 @@ function Navbar({ page, setPage, user, onLogout }) {
           <span aria-hidden="true">⌖</span>Issue Map
         </button>
 
-        {isAdmin && (
+        {isAuthority && (
           <>
-            <div className="nav-section-label">Admin intelligence</div>
+            <div className="nav-section-label">Authority insights</div>
             <button className={page === "heatmap" ? "nav-item active" : "nav-item"} onClick={() => setPage("heatmap")}>
               <span aria-hidden="true">◉</span>Heatmap
             </button>

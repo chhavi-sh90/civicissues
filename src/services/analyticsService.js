@@ -90,9 +90,17 @@ async function getByCategory({ from, to, department_id } = {}) {
   return rows;
 }
 
-async function getByDepartment({ from, to } = {}) {
-  const { clause, values } = dateRangeClause(from, to);
-  const where = clause ? `WHERE ${clause}` : '';
+async function getByDepartment({ from, to, department_id } = {}) {
+  const conditions = [];
+  const values = [];
+  const { clause, values: dateValues } = dateRangeClause(from, to);
+  if (clause) conditions.push(clause);
+  values.push(...dateValues);
+  if (department_id) {
+    conditions.push('c.department_id = ?');
+    values.push(department_id);
+  }
+  const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
 
   const [rows] = await pool.query(
     `SELECT dep.id AS department_id, dep.name AS department_name, COUNT(*) AS count
@@ -149,9 +157,17 @@ async function getResolutionTime({ from, to, department_id } = {}) {
 }
 
 /** Time-series complaint counts, grouped by day/week/month. */
-async function getTrends({ from, to, group_by = 'day' } = {}) {
-  const { clause, values } = dateRangeClause(from, to);
-  const where = clause ? `WHERE ${clause}` : '';
+async function getTrends({ from, to, group_by = 'day', department_id } = {}) {
+  const conditions = [];
+  const values = [];
+  const { clause, values: dateValues } = dateRangeClause(from, to);
+  if (clause) conditions.push(clause);
+  values.push(...dateValues);
+  if (department_id) {
+    conditions.push('c.department_id = ?');
+    values.push(department_id);
+  }
+  const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
 
   const formatMap = {
     day: '%Y-%m-%d',
@@ -177,9 +193,17 @@ async function getTrends({ from, to, group_by = 'day' } = {}) {
  * the same real-world pothole cluster together without needing external
  * geocoding.
  */
-async function getHotspots({ from, to } = {}) {
-  const { clause, values } = dateRangeClause(from, to);
-  const where = clause ? `WHERE ${clause}` : '';
+async function getHotspots({ from, to, department_id } = {}) {
+  const conditions = [];
+  const values = [];
+  const { clause, values: dateValues } = dateRangeClause(from, to);
+  if (clause) conditions.push(clause);
+  values.push(...dateValues);
+  if (department_id) {
+    conditions.push('c.department_id = ?');
+    values.push(department_id);
+  }
+  const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
 
   const [rows] = await pool.query(
     `SELECT

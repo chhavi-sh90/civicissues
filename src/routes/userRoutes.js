@@ -34,7 +34,7 @@ router.post(
   validate(authValidator.createUserByAdmin),
   authController.createUserByAdmin
 );
-router.get('/', roleMiddleware('admin'), userController.listUsers);
+router.get('/', roleMiddleware('admin', 'department_official'), userController.listUsers);
 router.put(
   '/:id/status',
   roleMiddleware('admin'),

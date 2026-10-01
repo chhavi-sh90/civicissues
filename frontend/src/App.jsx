@@ -437,7 +437,7 @@ function App() {
   }, [loadPortalData, logout, token]);
 
   useEffect(() => {
-    if (!token || user?.role !== "admin") return;
+    if (!token || user?.role === "citizen") return;
     if (!["analytics", "heatmap", "users"].includes(page)) return;
 
     let active = true;
@@ -653,8 +653,10 @@ function App() {
             {user.role === "citizen" && <button className="action-button" onClick={() => setPage("report")}>📝 Report an Issue</button>}
             <button className="action-button" onClick={() => setPage("complaints")}>📋 View Complaints</button>
             <button className="action-button" onClick={() => setPage("nearby")}>📍 Open Issue Map</button>
-            {user.role === "admin" && <button className="action-button" onClick={() => setPage("analytics")}>📊 Open Analytics</button>}
-            {user.role === "admin" && <button className="action-button" onClick={() => setPage("ai-analysis")}>✦ AI Analysis</button>}
+            {user.role !== "citizen" && <button className="action-button" onClick={() => setPage("heatmap")}>◉ Open Heatmap</button>}
+            {user.role !== "citizen" && <button className="action-button" onClick={() => setPage("analytics")}>📊 Open Analytics</button>}
+            {user.role !== "citizen" && <button className="action-button" onClick={() => setPage("ai-analysis")}>✦ AI Analysis</button>}
+            {user.role !== "citizen" && <button className="action-button" onClick={() => setPage("users")}>♟ View Users</button>}
           </div>
         </div>
         {user.role === "citizen" && <NotificationPanel notifications={notifications} onMarkAllRead={handleMarkAllRead} />}
@@ -725,7 +727,7 @@ function App() {
     );
   }
 
-  if (page === "analytics" && user.role === "admin") {
+  if (page === "analytics" && user.role !== "citizen") {
     return (
       <PortalLayout page={page} setPage={setPage} user={user} onLogout={logout}>
         <Message error={adminError} />
@@ -734,7 +736,7 @@ function App() {
     );
   }
 
-  if (page === "heatmap" && user.role === "admin") {
+  if (page === "heatmap" && user.role !== "citizen") {
     return (
       <PortalLayout page={page} setPage={setPage} user={user} onLogout={logout}>
         <Message error={adminError} />
@@ -743,7 +745,7 @@ function App() {
     );
   }
 
-  if (page === "ai-analysis" && user.role === "admin") {
+  if (page === "ai-analysis" && user.role !== "citizen") {
     return (
       <PortalLayout page={page} setPage={setPage} user={user} onLogout={logout}>
         <Message error={adminError} />
@@ -752,7 +754,7 @@ function App() {
     );
   }
 
-  if (page === "users" && user.role === "admin") {
+  if (page === "users" && user.role !== "citizen") {
     return (
       <PortalLayout page={page} setPage={setPage} user={user} onLogout={logout}>
         <Message error={adminError} />
@@ -761,7 +763,7 @@ function App() {
     );
   }
 
-  if (user.role === "admin" && ["pending", "in-progress", "resolved"].includes(page)) {
+  if (user.role !== "citizen" && ["pending", "in-progress", "resolved"].includes(page)) {
     const statusViews = {
       pending: {
         title: "Pending Complaints",

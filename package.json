@@ -9,6 +9,7 @@
     "dev:frontend": "npm --prefix frontend run dev",
     "frontend:install": "npm --prefix frontend install",
     "build": "npm run frontend:install && npm --prefix frontend run build",
+    "postinstall": "npm --prefix frontend install --include=dev && npm --prefix frontend run build",
     "test": "jest --runInBand"
   },
   "license": "MIT",

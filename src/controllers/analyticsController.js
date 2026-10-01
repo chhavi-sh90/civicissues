@@ -29,10 +29,11 @@ const byCategory = asyncHandler(async (req, res) => {
   return success(res, 200, 'Complaints by category fetched', { categories: data });
 });
 
-// GET /api/analytics/by-department  (admin only, enforced at route level)
+// GET /api/analytics/by-department
 const byDepartment = asyncHandler(async (req, res) => {
   const { from, to } = req.query;
-  const data = await analyticsService.getByDepartment({ from, to });
+  const department_id = resolveDepartmentScope(req);
+  const data = await analyticsService.getByDepartment({ from, to, department_id });
   return success(res, 200, 'Complaints by department fetched', { departments: data });
 });
 
@@ -44,17 +45,19 @@ const resolutionTime = asyncHandler(async (req, res) => {
   return success(res, 200, 'Resolution time fetched', data);
 });
 
-// GET /api/analytics/trends  (admin only, enforced at route level)
+// GET /api/analytics/trends
 const trends = asyncHandler(async (req, res) => {
   const { from, to, group_by } = req.query;
-  const data = await analyticsService.getTrends({ from, to, group_by });
+  const department_id = resolveDepartmentScope(req);
+  const data = await analyticsService.getTrends({ from, to, group_by, department_id });
   return success(res, 200, 'Trends fetched', { trends: data });
 });
 
-// GET /api/analytics/hotspots  (admin only, enforced at route level)
+// GET /api/analytics/hotspots
 const hotspots = asyncHandler(async (req, res) => {
   const { from, to } = req.query;
-  const data = await analyticsService.getHotspots({ from, to });
+  const department_id = resolveDepartmentScope(req);
+  const data = await analyticsService.getHotspots({ from, to, department_id });
   return success(res, 200, 'Hotspots fetched', { hotspots: data });
 });
 

@@ -20,7 +20,6 @@ router.get(
 );
 router.get(
   '/by-department',
-  roleMiddleware('admin'),
   validate(analyticsValidator.dateRangeQuery, { source: 'query' }),
   analyticsController.byDepartment
 );
@@ -31,13 +30,11 @@ router.get(
 );
 router.get(
   '/trends',
-  roleMiddleware('admin'),
   validate(analyticsValidator.trendsQuery, { source: 'query' }),
   analyticsController.trends
 );
 router.get(
   '/hotspots',
-  roleMiddleware('admin'),
   validate(analyticsValidator.dateRangeQuery, { source: 'query' }),
   analyticsController.hotspots
 );
