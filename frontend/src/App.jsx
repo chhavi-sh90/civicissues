@@ -592,6 +592,13 @@ function App() {
     setNotice("");
   }
 
+  function prepareDemoLogin(email) {
+    if (token) logout();
+    setAuthMode("login");
+    setAuthForm({ ...initialAuthForm, email, password: "Password@123" });
+    setNotice("Demo credentials are ready. Select Login to continue.");
+  }
+
   if (page === "loading") {
     return <div className="loading-page"><div className="loading-spinner" /><p>Loading CivicConnect…</p></div>;
   }
@@ -604,6 +611,16 @@ function App() {
           <h1>CivicConnect</h1>
           <p>{authMode === "register" ? "Create your citizen account" : "Citizen & Authority Portal"}</p>
           <Message error={error} notice={notice} />
+          {authMode === "login" && (
+            <div className="demo-access" aria-label="Demo portal access">
+              <span>Choose a demo portal</span>
+              <div>
+                <button type="button" onClick={() => prepareDemoLogin("bhumi.citizen@example.com")}>Citizen</button>
+                <button type="button" onClick={() => prepareDemoLogin("ramesh.roads@civicconnect.gov")}>Authority</button>
+                <button type="button" onClick={() => prepareDemoLogin("admin@civicconnect.gov")}>Admin</button>
+              </div>
+            </div>
+          )}
           <form onSubmit={handleAuthSubmit}>
             {authMode === "register" && (
               <>
@@ -672,6 +689,22 @@ function App() {
             </div>
           ))}
         </div>
+      </PortalLayout>
+    );
+  }
+
+  if (page === "authority-access" && user.role === "citizen") {
+    return (
+      <PortalLayout page={page} setPage={setPage} user={user} onLogout={logout}>
+        <section className="content-card authority-access-card">
+          <span className="authority-access-kicker">Separate secure portal</span>
+          <h2>Authority dashboard access</h2>
+          <p>Heatmap, Analytics, AI Analysis, Users, and status queues use protected authority data. Sign in with an authority or admin account to open them.</p>
+          <div className="authority-feature-list">
+            <span>◉ Heatmap</span><span>▥ Analytics</span><span>✦ AI Analysis</span><span>♟ Users</span>
+          </div>
+          <button className="action-button authority-access-button" onClick={() => prepareDemoLogin("ramesh.roads@civicconnect.gov")}>Continue to Authority Login</button>
+        </section>
       </PortalLayout>
     );
   }

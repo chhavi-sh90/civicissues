@@ -151,6 +151,7 @@ The production build output is generated in `frontend/dist` and is not committed
 ## Demo accounts
 
 After importing `database/seed.sql`, all seeded users use password `Password@123`.
+The login screen includes Citizen, Authority, and Admin demo selectors so the correct role-specific dashboard is easy to open.
 
 | Role | Email |
 | --- | --- |

@@ -62,6 +62,24 @@ function Navbar({ page, setPage, user, onLogout }) {
             </button>
           </>
         )}
+
+        {isCitizen && (
+          <>
+            <div className="nav-section-label">Authority portal</div>
+            <button className="nav-item nav-item-locked" onClick={() => setPage("authority-access")} title="Authority account required">
+              <span aria-hidden="true">🔒</span>Heatmap
+            </button>
+            <button className="nav-item nav-item-locked" onClick={() => setPage("authority-access")} title="Authority account required">
+              <span aria-hidden="true">🔒</span>Analytics
+            </button>
+            <button className="nav-item nav-item-locked" onClick={() => setPage("authority-access")} title="Authority account required">
+              <span aria-hidden="true">🔒</span>AI Analysis
+            </button>
+            <button className="nav-item nav-item-locked" onClick={() => setPage("authority-access")} title="Authority account required">
+              <span aria-hidden="true">🔒</span>Users
+            </button>
+          </>
+        )}
       </nav>
 
       <div className="sidebar-bottom">

@@ -454,6 +454,7 @@ body {
 .nav-menu {
   margin-top: 28px;
   display: flex;
+  flex: 1;
   flex-direction: column;
   gap: 7px;
 }
@@ -494,6 +495,7 @@ body {
 
 .sidebar-bottom {
   margin-top: auto;
+  flex-shrink: 0;
 }
 
 .help-box {
@@ -562,7 +564,7 @@ body {
 
 /* RESPONSIVE SIDEBAR */
 
-@media (max-width: 700px) {
+@media (max-width: 520px) {
   .sidebar {
     width: 72px;
     padding: 20px 10px;
@@ -1601,6 +1603,72 @@ body {
   text-transform: uppercase;
 }
 
+.nav-item-locked {
+  color: #8d9a9f;
+  opacity: 0.82;
+}
+
+.nav-item-locked:hover {
+  background: rgba(255,255,255,0.05);
+  color: #d6dddf;
+}
+
+.demo-access {
+  margin: 0 0 20px;
+  padding: 14px;
+  border: 1px solid #dce7e1;
+  border-radius: 12px;
+  background: #f5faf7;
+  text-align: left;
+}
+
+.demo-access > span {
+  display: block;
+  margin-bottom: 10px;
+  color: #344054;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.demo-access > div {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 7px;
+}
+
+.login-card .demo-access button {
+  padding: 9px 6px;
+  border: 1px solid #c8dbd1;
+  background: #fff;
+  color: #0b6b43;
+  font-size: 12px;
+}
+
+.login-card .demo-access button:hover {
+  background: #e8f5ee;
+}
+
+.authority-access-card {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 40px;
+  text-align: center;
+}
+
+.authority-access-kicker {
+  color: #0b6b43;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+}
+
+.authority-access-card h2 { margin: 10px 0; }
+.authority-access-card > p { max-width: 610px; margin: 0 auto 24px; color: #667085; line-height: 1.65; }
+.authority-feature-list { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 26px; }
+.authority-feature-list span { padding: 14px 10px; border: 1px solid #dce7e1; border-radius: 10px; background: #f7faf8; color: #344054; font-size: 13px; font-weight: 800; }
+.authority-access-button { width: auto; margin: 0 auto; }
+
 .admin-page-heading {
   align-items: flex-end;
   margin-bottom: 24px;
@@ -1815,4 +1883,6 @@ body {
   .admin-panel { padding: 17px; }
   .admin-heatmap-canvas { height: 500px; }
   .ai-disclosure { align-items: flex-start; flex-direction: column; }
+  .authority-feature-list { grid-template-columns: repeat(2, 1fr); }
+  .authority-access-card { padding: 26px 18px; }
 }
