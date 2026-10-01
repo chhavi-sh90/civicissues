@@ -68,11 +68,11 @@ async function list({ role, department_id, page = 1, limit = 20 }) {
   const values = [];
 
   if (role) {
-    conditions.push('role = ?');
+    conditions.push('u.role = ?');
     values.push(role);
   }
   if (department_id) {
-    conditions.push('department_id = ?');
+    conditions.push('u.department_id = ?');
     values.push(department_id);
   }
 
@@ -80,10 +80,17 @@ async function list({ role, department_id, page = 1, limit = 20 }) {
   const offset = (page - 1) * limit;
 
   const [rows] = await pool.query(
-    `SELECT ${PUBLIC_FIELDS} FROM users ${whereClause} ORDER BY created_at DESC LIMIT ? OFFSET ?`,
+    `SELECT u.id, u.full_name, u.email, u.phone, u.role, u.department_id,
+            u.is_active, u.created_at, u.updated_at,
+            dep.name AS department_name,
+            (SELECT COUNT(*) FROM complaints c WHERE c.citizen_id = u.id) AS complaint_count
+       FROM users u
+       LEFT JOIN departments dep ON dep.id = u.department_id
+       ${whereClause}
+      ORDER BY u.created_at DESC LIMIT ? OFFSET ?`,
     [...values, limit, offset]
   );
-  const [countRows] = await pool.query(`SELECT COUNT(*) AS total FROM users ${whereClause}`, values);
+  const [countRows] = await pool.query(`SELECT COUNT(*) AS total FROM users u ${whereClause}`, values);
 
   return { items: rows, total: countRows[0].total, page, limit };
 }

@@ -118,6 +118,7 @@ Note: if Firebase Admin credentials are not configured in `.env`, push notificat
 | GET | `/analytics/resolution-time` | admin, department_official | `from?, to?` | 200: avg resolution time (hours) overall + per category | 401, 403 |
 | GET | `/analytics/trends` | admin | `from?, to?, group_by=day\|week\|month` | 200: time series counts | 401, 403 |
 | GET | `/analytics/hotspots` | admin | `from?, to?` | 200: complaint counts grouped by rounded lat/lng (recurring-issue detection) | 401, 403 |
+| GET | `/analytics/ai-analysis/:complaintId` | admin, department_official (own department) | — | 200: classification method/confidence, priority score, nearby duplicates, signals and recommendation | 401, 403, 404 |
 
 All analytics endpoints return only aggregated counts/averages — never raw citizen personal data — per your "authorized/aggregated data only" requirement.
 

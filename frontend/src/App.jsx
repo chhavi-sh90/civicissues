@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import L from "leaflet";
-import { MapContainer, Marker, Popup, TileLayer, useMapEvents } from "react-leaflet";
+import { Circle, MapContainer, Marker, Popup, TileLayer, useMapEvents } from "react-leaflet";
 import markerIcon from "leaflet/dist/images/marker-icon.png";
 import markerIcon2x from "leaflet/dist/images/marker-icon-2x.png";
 import markerShadow from "leaflet/dist/images/marker-shadow.png";
@@ -164,6 +164,172 @@ function NotificationPanel({ notifications, onMarkAllRead }) {
   );
 }
 
+function MetricCard({ label, value, context, tone = "green" }) {
+  return (
+    <div className={`admin-metric metric-${tone}`}>
+      <span>{label}</span>
+      <strong>{value ?? "—"}</strong>
+      {context && <p>{context}</p>}
+    </div>
+  );
+}
+
+function BarList({ items, labelKey, valueKey = "count", emptyText }) {
+  const maximum = Math.max(...items.map((item) => Number(item[valueKey]) || 0), 1);
+  if (items.length === 0) return <div className="admin-empty">{emptyText}</div>;
+  return (
+    <div className="admin-bar-list">
+      {items.map((item) => {
+        const value = Number(item[valueKey]) || 0;
+        return (
+          <div className="admin-bar-row" key={`${item[labelKey]}-${value}`}>
+            <div><strong>{item[labelKey] || "Unassigned"}</strong><span>{value}</span></div>
+            <div className="admin-bar-track"><div style={{ width: `${(value / maximum) * 100}%` }} /></div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function TrendChart({ trends }) {
+  const maximum = Math.max(...trends.map((item) => Number(item.count) || 0), 1);
+  if (trends.length === 0) return <div className="admin-empty">No trend data is available for this date range.</div>;
+  return (
+    <div className="trend-chart" role="img" aria-label="Complaint counts over time">
+      {trends.map((item) => (
+        <div className="trend-column" key={item.period}>
+          <span>{item.count}</span>
+          <div style={{ height: `${Math.max((Number(item.count) / maximum) * 100, 8)}%` }} />
+          <small>{item.period}</small>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function AdminAnalyticsPage({ data, loading, dateRange, setDateRange, onApply }) {
+  const summary = data?.summary || {};
+  const resolutionRate = summary.total ? Math.round((Number(summary.resolved || 0) / Number(summary.total)) * 100) : 0;
+  return (
+    <>
+      <div className="page-toolbar admin-page-heading">
+        <div className="page-title"><h2>Complaint Analytics</h2><p>Live aggregated trends, workload, and resolution performance.</p></div>
+        <form className="date-filter" onSubmit={(event) => { event.preventDefault(); onApply(); }}>
+          <label>From<input type="date" value={dateRange.from} onChange={(event) => setDateRange({ ...dateRange, from: event.target.value })} /></label>
+          <label>To<input type="date" value={dateRange.to} onChange={(event) => setDateRange({ ...dateRange, to: event.target.value })} /></label>
+          <button type="submit" disabled={loading}>{loading ? "Loading…" : "Apply"}</button>
+        </form>
+      </div>
+
+      <div className="admin-metrics-grid">
+        <MetricCard label="Total complaints" value={summary.total ?? 0} context="All reports in range" />
+        <MetricCard label="Pending review" value={summary.pending ?? 0} context="Submitted, review, or assigned" tone="amber" />
+        <MetricCard label="In progress" value={summary.in_progress ?? 0} context="Active field work" tone="purple" />
+        <MetricCard label="Resolved" value={summary.resolved ?? 0} context={`${resolutionRate}% resolution rate`} tone="blue" />
+      </div>
+
+      <div className="admin-analytics-grid">
+        <section className="admin-panel admin-panel-wide"><div className="admin-panel-heading"><h3>Complaint trend</h3><span>Reports by day</span></div><TrendChart trends={data?.trends || []} /></section>
+        <section className="admin-panel"><div className="admin-panel-heading"><h3>By category</h3><span>Reported issue mix</span></div><BarList items={data?.categories || []} labelKey="category_name" emptyText="No category data available." /></section>
+        <section className="admin-panel"><div className="admin-panel-heading"><h3>By department</h3><span>Operational workload</span></div><BarList items={data?.departments || []} labelKey="department_name" emptyText="No department data available." /></section>
+        <section className="admin-panel"><div className="admin-panel-heading"><h3>Resolution time</h3><span>Average completed turnaround</span></div><div className="resolution-value"><strong>{data?.resolution?.overall_avg_hours ?? "—"}</strong><span>hours overall</span></div><BarList items={data?.resolution?.by_category || []} labelKey="category_name" valueKey="avg_hours" emptyText="No resolved complaints in this range." /></section>
+        <section className="admin-panel"><div className="admin-panel-heading"><h3>Status distribution</h3><span>Current case state</span></div><BarList items={Object.entries(summary.by_status || {}).map(([status, count]) => ({ status: statusLabel(status), count }))} labelKey="status" emptyText="No status data available." /></section>
+      </div>
+    </>
+  );
+}
+
+function AdminHeatmapPage({ hotspots, complaints }) {
+  const complaintPoints = complaints.filter((item) => Number.isFinite(Number(item.latitude)) && Number.isFinite(Number(item.longitude)));
+  const points = hotspots.length > 0
+    ? hotspots.map((item) => ({ ...item, label: item.categories }))
+    : complaintPoints.map((item) => ({ latitude: item.latitude, longitude: item.longitude, count: 1, label: item.category_name }));
+  const center = points.length ? [Number(points[0].latitude), Number(points[0].longitude)] : DEFAULT_POSITION;
+  const totalDensity = points.reduce((total, item) => total + Number(item.count || 0), 0);
+  return (
+    <>
+      <div className="page-title"><h2>Complaint Heatmap</h2><p>Live geographic concentration based on complaint coordinates.</p></div>
+      <div className="heatmap-layout">
+        <section className="admin-panel heatmap-map">
+          <div className="map-canvas admin-heatmap-canvas">
+            <MapContainer key={`${center[0]}-${center[1]}-${points.length}`} center={center} zoom={12} scrollWheelZoom>
+              <TileLayer attribution="&copy; OpenStreetMap contributors" url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+              {points.map((item, index) => {
+                const count = Number(item.count) || 1;
+                const tone = count >= 5 ? "#b42318" : count >= 3 ? "#e04f16" : "#f59e0b";
+                return (
+                  <Circle key={`${item.latitude}-${item.longitude}-${index}`} center={[Number(item.latitude), Number(item.longitude)]} radius={220 + count * 90} pathOptions={{ color: tone, fillColor: tone, fillOpacity: Math.min(0.2 + count * 0.08, 0.62), weight: 2 }}>
+                    <Popup><strong>{count} complaint{count === 1 ? "" : "s"}</strong><br />{item.label || "Mixed categories"}</Popup>
+                  </Circle>
+                );
+              })}
+            </MapContainer>
+          </div>
+        </section>
+        <aside className="admin-panel heatmap-summary-panel">
+          <h3>Density summary</h3>
+          <div className="density-total"><strong>{totalDensity}</strong><span>reports mapped</span></div>
+          <p>Circle size and opacity increase where reports cluster within roughly 100–220 metres.</p>
+          <div className="heat-legend"><span><i className="heat-low" />Single / low density</span><span><i className="heat-medium" />Recurring area</span><span><i className="heat-high" />High-density hotspot</span></div>
+        </aside>
+      </div>
+    </>
+  );
+}
+
+function AdminAIPage({ complaints, result, loadingId, onAnalyze }) {
+  return (
+    <>
+      <div className="page-title"><h2>AI-Assisted Analysis</h2><p>Classification, priority signals, nearby duplicate detection, and an action recommendation.</p></div>
+      <div className="ai-disclosure"><strong>Transparent analysis</strong><span>The page labels whether classification came from a configured ML model or the built-in rule-based fallback.</span></div>
+      <div className="ai-layout">
+        <section className="admin-panel ai-complaint-list">
+          <div className="admin-panel-heading"><h3>Select a complaint</h3><span>{complaints.length} available</span></div>
+          {complaints.map((item) => (
+            <button className="ai-complaint-button" key={item.id} onClick={() => onAnalyze(item.id)} disabled={loadingId === item.id}>
+              <span><strong>{item.reference_code}</strong><small>{item.title}</small></span>
+              <em>{loadingId === item.id ? "Analyzing…" : "Analyze"}</em>
+            </button>
+          ))}
+        </section>
+        <section className="admin-panel ai-result" aria-live="polite">
+          {!result ? (
+            <div className="admin-empty">Choose a complaint to generate a live analysis.</div>
+          ) : (
+            <>
+              <div className="admin-panel-heading"><h3>{result.reference_code}</h3><span>{result.title}</span></div>
+              <div className="ai-score-grid">
+                <MetricCard label="Detected category" value={result.classification.category_name} context={result.classification.method === "ml" ? "External ML model" : "Rule-based fallback"} />
+                <MetricCard label="Priority score" value={`${result.priority_score}/100`} context={`${result.risk_level} risk`} tone="amber" />
+                <MetricCard label="Confidence" value={result.classification.confidence == null ? "Not supplied" : `${Math.round(result.classification.confidence * 100)}%`} context="Classification confidence" tone="purple" />
+                <MetricCard label="Nearby matches" value={result.possible_duplicates} context={`Within ${result.duplicate_radius_meters}m`} tone="blue" />
+              </div>
+              <div className="ai-recommendation"><strong>Recommended action</strong><p>{result.recommendation}</p></div>
+              <div className="ai-signals"><span>Configured priority: <strong>{result.signals.configured_priority}</strong></span><span>Age: <strong>{result.signals.age_days} days</strong></span><span>Urgent terms: <strong>{result.signals.urgent_keywords.join(", ") || "None"}</strong></span></div>
+            </>
+          )}
+        </section>
+      </div>
+    </>
+  );
+}
+
+function AdminUsersPage({ users }) {
+  return (
+    <>
+      <div className="page-title"><h2>User Management</h2><p>Citizens, department authorities, and administrators registered in CivicConnect.</p></div>
+      <section className="admin-panel users-table-wrap">
+        <table className="admin-table">
+          <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Department</th><th>Reports</th><th>Status</th></tr></thead>
+          <tbody>{users.map((item) => <tr key={item.id}><td>{item.full_name}</td><td>{item.email}</td><td>{item.role.replaceAll("_", " ")}</td><td>{item.department_name || "—"}</td><td>{item.complaint_count}</td><td><span className={item.is_active ? "user-active" : "user-inactive"}>{item.is_active ? "Active" : "Inactive"}</span></td></tr>)}</tbody>
+        </table>
+        {users.length === 0 && <div className="admin-empty">No users found.</div>}
+      </section>
+    </>
+  );
+}
+
 function App() {
   const storedSession = useMemo(() => readStoredSession(), []);
   const [token, setToken] = useState(storedSession?.token || "");
@@ -178,6 +344,13 @@ function App() {
   const [complaints, setComplaints] = useState([]);
   const [notifications, setNotifications] = useState([]);
   const [submittedComplaint, setSubmittedComplaint] = useState(null);
+  const [adminAnalytics, setAdminAnalytics] = useState(null);
+  const [adminUsers, setAdminUsers] = useState([]);
+  const [adminLoading, setAdminLoading] = useState(false);
+  const [adminError, setAdminError] = useState("");
+  const [dateRange, setDateRange] = useState({ from: "", to: "" });
+  const [aiResult, setAiResult] = useState(null);
+  const [aiLoadingId, setAiLoadingId] = useState(null);
   const [loading, setLoading] = useState(false);
   const [updatingId, setUpdatingId] = useState(null);
   const [error, setError] = useState("");
@@ -194,6 +367,38 @@ function App() {
     setNotifications(notificationData.items || []);
   }, []);
 
+  const loadAdminAnalytics = useCallback(async (activeToken, range = {}) => {
+    const query = new URLSearchParams();
+    if (range.from) query.set("from", range.from);
+    if (range.to) query.set("to", range.to);
+    const suffix = query.toString() ? `?${query}` : "";
+    const trendQuery = new URLSearchParams(query);
+    trendQuery.set("group_by", "day");
+
+    const [summary, categoryData, departmentData, resolution, trendData, hotspotData] = await Promise.all([
+      apiRequest(`/analytics/summary${suffix}`, { token: activeToken }),
+      apiRequest(`/analytics/by-category${suffix}`, { token: activeToken }),
+      apiRequest(`/analytics/by-department${suffix}`, { token: activeToken }),
+      apiRequest(`/analytics/resolution-time${suffix}`, { token: activeToken }),
+      apiRequest(`/analytics/trends?${trendQuery}`, { token: activeToken }),
+      apiRequest(`/analytics/hotspots${suffix}`, { token: activeToken }),
+    ]);
+
+    setAdminAnalytics({
+      summary,
+      categories: categoryData.categories || [],
+      departments: departmentData.departments || [],
+      resolution,
+      trends: trendData.trends || [],
+      hotspots: hotspotData.hotspots || [],
+    });
+  }, []);
+
+  const loadAdminUsers = useCallback(async (activeToken) => {
+    const data = await apiRequest("/users?limit=100", { token: activeToken });
+    setAdminUsers(data.items || []);
+  }, []);
+
   const logout = useCallback(() => {
     localStorage.removeItem(SESSION_KEY);
     setToken("");
@@ -201,6 +406,9 @@ function App() {
     setComplaints([]);
     setCategories([]);
     setNotifications([]);
+    setAdminAnalytics(null);
+    setAdminUsers([]);
+    setAiResult(null);
     setPage("login");
     setAuthMode("login");
     setError("");
@@ -227,6 +435,29 @@ function App() {
 
     return () => { active = false; };
   }, [loadPortalData, logout, token]);
+
+  useEffect(() => {
+    if (!token || user?.role !== "admin") return;
+    if (!["analytics", "heatmap", "users"].includes(page)) return;
+
+    let active = true;
+    const request = Promise.resolve().then(() => {
+      if (active) {
+        setAdminLoading(true);
+        setAdminError("");
+      }
+      return page === "users" ? loadAdminUsers(token) : loadAdminAnalytics(token, dateRange);
+    });
+    request
+      .catch((requestError) => {
+        if (active) setAdminError(requestError.message);
+      })
+      .finally(() => {
+        if (active) setAdminLoading(false);
+      });
+
+    return () => { active = false; };
+  }, [dateRange, loadAdminAnalytics, loadAdminUsers, page, token, user?.role]);
 
   const stats = useMemo(() => ({
     total: complaints.length,
@@ -330,6 +561,31 @@ function App() {
     }
   }
 
+  async function handleApplyAnalytics() {
+    setAdminLoading(true);
+    setAdminError("");
+    try {
+      await loadAdminAnalytics(token, dateRange);
+    } catch (requestError) {
+      setAdminError(requestError.message);
+    } finally {
+      setAdminLoading(false);
+    }
+  }
+
+  async function handleAIAnalysis(complaintId) {
+    setAiLoadingId(complaintId);
+    setAdminError("");
+    try {
+      const data = await apiRequest(`/analytics/ai-analysis/${complaintId}`, { token });
+      setAiResult(data.analysis);
+    } catch (requestError) {
+      setAdminError(requestError.message);
+    } finally {
+      setAiLoadingId(null);
+    }
+  }
+
   function switchAuthMode(mode) {
     setAuthMode(mode);
     setError("");
@@ -397,6 +653,8 @@ function App() {
             {user.role === "citizen" && <button className="action-button" onClick={() => setPage("report")}>📝 Report an Issue</button>}
             <button className="action-button" onClick={() => setPage("complaints")}>📋 View Complaints</button>
             <button className="action-button" onClick={() => setPage("nearby")}>📍 Open Issue Map</button>
+            {user.role === "admin" && <button className="action-button" onClick={() => setPage("analytics")}>📊 Open Analytics</button>}
+            {user.role === "admin" && <button className="action-button" onClick={() => setPage("ai-analysis")}>✦ AI Analysis</button>}
           </div>
         </div>
         {user.role === "citizen" && <NotificationPanel notifications={notifications} onMarkAllRead={handleMarkAllRead} />}
@@ -462,6 +720,87 @@ function App() {
           <p>Your reference number is <strong>{submittedComplaint?.reference_code}</strong>. Use it to track the issue.</p>
           <button className="success-button" onClick={() => setPage("complaints")}>View Complaints</button>
           <button className="success-secondary" onClick={() => setPage("dashboard")}>Back to Dashboard</button>
+        </div>
+      </PortalLayout>
+    );
+  }
+
+  if (page === "analytics" && user.role === "admin") {
+    return (
+      <PortalLayout page={page} setPage={setPage} user={user} onLogout={logout}>
+        <Message error={adminError} />
+        <AdminAnalyticsPage data={adminAnalytics} loading={adminLoading} dateRange={dateRange} setDateRange={setDateRange} onApply={handleApplyAnalytics} />
+      </PortalLayout>
+    );
+  }
+
+  if (page === "heatmap" && user.role === "admin") {
+    return (
+      <PortalLayout page={page} setPage={setPage} user={user} onLogout={logout}>
+        <Message error={adminError} />
+        {adminLoading && !adminAnalytics ? <div className="admin-loading">Loading heatmap data…</div> : <AdminHeatmapPage hotspots={adminAnalytics?.hotspots || []} complaints={complaints} />}
+      </PortalLayout>
+    );
+  }
+
+  if (page === "ai-analysis" && user.role === "admin") {
+    return (
+      <PortalLayout page={page} setPage={setPage} user={user} onLogout={logout}>
+        <Message error={adminError} />
+        <AdminAIPage complaints={complaints} result={aiResult} loadingId={aiLoadingId} onAnalyze={handleAIAnalysis} />
+      </PortalLayout>
+    );
+  }
+
+  if (page === "users" && user.role === "admin") {
+    return (
+      <PortalLayout page={page} setPage={setPage} user={user} onLogout={logout}>
+        <Message error={adminError} />
+        {adminLoading && adminUsers.length === 0 ? <div className="admin-loading">Loading users…</div> : <AdminUsersPage users={adminUsers} />}
+      </PortalLayout>
+    );
+  }
+
+  if (user.role === "admin" && ["pending", "in-progress", "resolved"].includes(page)) {
+    const statusViews = {
+      pending: {
+        title: "Pending Complaints",
+        description: "Issues waiting for review, assignment, or field action.",
+        statuses: ["submitted", "under_review", "assigned"],
+      },
+      "in-progress": {
+        title: "Complaints In Progress",
+        description: "Issues currently being handled by civic teams.",
+        statuses: ["in_progress"],
+      },
+      resolved: {
+        title: "Resolved Complaints",
+        description: "Completed issues and their final citizen-facing updates.",
+        statuses: ["resolved"],
+      },
+    };
+    const view = statusViews[page];
+    const filteredComplaints = complaints.filter((complaint) => view.statuses.includes(complaint.status));
+
+    return (
+      <PortalLayout page={page} setPage={setPage} user={user} onLogout={logout}>
+        <div className="page-toolbar">
+          <div className="page-title"><h2>{view.title}</h2><p>{view.description}</p></div>
+          <button className="secondary-button" onClick={handleRefresh} disabled={loading}>Refresh</button>
+        </div>
+        <Message error={error} notice={notice} />
+        <div className="content-card complaints-list">
+          {filteredComplaints.length === 0 ? (
+            <div className="complaint-empty"><div className="empty-icon">✓</div><h3>No {view.title.toLowerCase()}</h3><p>This queue is currently clear.</p></div>
+          ) : filteredComplaints.map((complaint) => (
+            <ComplaintCard
+              key={complaint.id}
+              complaint={complaint}
+              canManage
+              onUpdateStatus={handleStatusUpdate}
+              busy={updatingId === complaint.id}
+            />
+          ))}
         </div>
       </PortalLayout>
     );

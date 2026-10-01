@@ -1,5 +1,6 @@
 function Navbar({ page, setPage, user, onLogout }) {
   const isCitizen = user?.role === "citizen";
+  const isAdmin = user?.role === "admin";
 
   return (
     <aside className="sidebar">
@@ -26,9 +27,41 @@ function Navbar({ page, setPage, user, onLogout }) {
           <span aria-hidden="true">▤</span>{isCitizen ? "My Complaints" : "Complaints"}
         </button>
 
+        {isAdmin && (
+          <>
+            <button className={page === "pending" ? "nav-item active" : "nav-item"} onClick={() => setPage("pending")}>
+              <span aria-hidden="true">◷</span>Pending
+            </button>
+            <button className={page === "in-progress" ? "nav-item active" : "nav-item"} onClick={() => setPage("in-progress")}>
+              <span aria-hidden="true">↻</span>In Progress
+            </button>
+            <button className={page === "resolved" ? "nav-item active" : "nav-item"} onClick={() => setPage("resolved")}>
+              <span aria-hidden="true">✓</span>Resolved
+            </button>
+          </>
+        )}
+
         <button className={page === "nearby" ? "nav-item active" : "nav-item"} onClick={() => setPage("nearby")}>
           <span aria-hidden="true">⌖</span>Issue Map
         </button>
+
+        {isAdmin && (
+          <>
+            <div className="nav-section-label">Admin intelligence</div>
+            <button className={page === "heatmap" ? "nav-item active" : "nav-item"} onClick={() => setPage("heatmap")}>
+              <span aria-hidden="true">◉</span>Heatmap
+            </button>
+            <button className={page === "analytics" ? "nav-item active" : "nav-item"} onClick={() => setPage("analytics")}>
+              <span aria-hidden="true">▥</span>Analytics
+            </button>
+            <button className={page === "ai-analysis" ? "nav-item active" : "nav-item"} onClick={() => setPage("ai-analysis")}>
+              <span aria-hidden="true">✦</span>AI Analysis
+            </button>
+            <button className={page === "users" ? "nav-item active" : "nav-item"} onClick={() => setPage("users")}>
+              <span aria-hidden="true">♟</span>Users
+            </button>
+          </>
+        )}
       </nav>
 
       <div className="sidebar-bottom">

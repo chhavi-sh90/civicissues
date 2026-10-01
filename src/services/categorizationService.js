@@ -26,14 +26,19 @@ const KEYWORD_MAP = {
   'water-supply': ['water supply', 'water leak', 'no water', 'pipe burst', 'leakage'],
 };
 
-function ruleBasedSuggestSlug(text) {
+function ruleBasedSuggestion(text) {
   const normalized = text.toLowerCase();
   for (const [slug, keywords] of Object.entries(KEYWORD_MAP)) {
-    if (keywords.some((kw) => normalized.includes(kw))) {
-      return slug;
+    const matchedKeywords = keywords.filter((keyword) => normalized.includes(keyword));
+    if (matchedKeywords.length > 0) {
+      return {
+        slug,
+        matchedKeywords,
+        confidence: Math.min(0.55 + matchedKeywords.length * 0.1, 0.9),
+      };
     }
   }
-  return 'other';
+  return { slug: 'other', matchedKeywords: [], confidence: 0.35 };
 }
 
 async function callMlEndpoint(title, description) {
@@ -50,7 +55,12 @@ async function callMlEndpoint(title, description) {
 
     if (!res.ok) throw new Error(`ML endpoint returned status ${res.status}`);
     const data = await res.json();
-    return data.category_slug || null;
+    if (!data.category_slug) return null;
+    return {
+      slug: data.category_slug,
+      confidence: Number.isFinite(Number(data.confidence)) ? Number(data.confidence) : null,
+      matchedKeywords: [],
+    };
   } catch (err) {
     logger.warn(`ML categorization endpoint unavailable, falling back to rules: ${err.message}`);
     return null;
@@ -67,14 +77,14 @@ async function callMlEndpoint(title, description) {
 async function suggestCategory({ title, description }) {
   const combinedText = `${title} ${description}`;
 
-  let slug = await callMlEndpoint(title, description);
-  const usedMl = Boolean(slug);
+  let suggestion = await callMlEndpoint(title, description);
+  const usedMl = Boolean(suggestion);
 
-  if (!slug) {
-    slug = ruleBasedSuggestSlug(combinedText);
+  if (!suggestion) {
+    suggestion = ruleBasedSuggestion(combinedText);
   }
 
-  let category = await categoryModel.findBySlug(slug);
+  let category = await categoryModel.findBySlug(suggestion.slug);
   if (!category) {
     category = await categoryModel.findBySlug('other');
   }
@@ -86,6 +96,8 @@ async function suggestCategory({ title, description }) {
   return {
     category,
     method: usedMl ? 'ml' : 'rule-based',
+    confidence: suggestion.confidence,
+    matched_keywords: suggestion.matchedKeywords,
   };
 }
 

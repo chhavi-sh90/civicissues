@@ -41,5 +41,6 @@ router.get(
   validate(analyticsValidator.dateRangeQuery, { source: 'query' }),
   analyticsController.hotspots
 );
+router.get('/ai-analysis/:complaintId', analyticsController.aiAnalysis);
 
 module.exports = router;

@@ -26,6 +26,17 @@ The project combines:
 - Changes an issue to Under Review, In Progress, Resolved, or Rejected
 - Sends a required update note, plus a rejection reason when applicable
 
+### Administrator intelligence
+
+The admin account also has the dashboard modules from the `member3-admin` frontend branch, connected to live backend data:
+
+- Complete complaint queue and map
+- Complaint-density heatmap
+- Date-filtered status, category, department, trend, and resolution analytics
+- AI-assisted category/risk analysis with transparent ML or rule-based method labels
+- Nearby duplicate detection and action recommendations
+- User directory with roles, departments, activity status, and report counts
+
 Citizen registration never creates an authority account. Authority accounts are seeded for the demo or created by an administrator.
 
 ## Project structure

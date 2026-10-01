@@ -5,6 +5,8 @@
 // "authorized/aggregated data only" requirement for dashboards.
 
 const { pool } = require('../config/db');
+const complaintModel = require('../models/complaintModel');
+const categorizationService = require('./categorizationService');
 
 function dateRangeClause(from, to, column = 'c.created_at') {
   const conditions = [];
@@ -197,4 +199,86 @@ async function getHotspots({ from, to } = {}) {
   return rows;
 }
 
-module.exports = { getSummary, getByCategory, getByDepartment, getResolutionTime, getTrends, getHotspots };
+/**
+ * AI-assisted analysis for one complaint. If an external ML endpoint is
+ * configured, its classification is used. Otherwise the response clearly
+ * identifies the built-in keyword/risk heuristic as rule-based.
+ */
+async function analyzeComplaint(complaintId) {
+  const complaint = await complaintModel.findById(complaintId);
+  if (!complaint) return null;
+
+  const classification = await categorizationService.suggestCategory({
+    title: complaint.title,
+    description: complaint.description,
+  });
+
+  const priorityBase = { low: 30, medium: 50, high: 72, critical: 88 };
+  const ageDays = Math.max(
+    0,
+    Math.floor((Date.now() - new Date(complaint.created_at).getTime()) / (1000 * 60 * 60 * 24))
+  );
+  const urgentKeywords = ['danger', 'accident', 'emergency', 'blocked', 'overflow', 'fire', 'injury'];
+  const normalizedText = `${complaint.title} ${complaint.description}`.toLowerCase();
+  const matchedUrgentKeywords = urgentKeywords.filter((keyword) => normalizedText.includes(keyword));
+  const priorityScore = Math.min(
+    100,
+    (priorityBase[complaint.priority] || priorityBase.medium) +
+      Math.min(ageDays, 10) +
+      matchedUrgentKeywords.length * 5
+  );
+
+  const [duplicateRows] = await pool.execute(
+    `SELECT COUNT(*) AS duplicate_count
+       FROM complaints
+      WHERE id <> ?
+        AND category_id = ?
+        AND ABS(latitude - ?) <= 0.002
+        AND ABS(longitude - ?) <= 0.002`,
+    [complaint.id, complaint.category_id, complaint.latitude, complaint.longitude]
+  );
+  const duplicateCount = duplicateRows[0].duplicate_count;
+  const riskLevel = priorityScore >= 85 ? 'critical' : priorityScore >= 65 ? 'high' : priorityScore >= 45 ? 'medium' : 'low';
+
+  let recommendation = 'Route through the standard department workflow and monitor citizen updates.';
+  if (priorityScore >= 85) {
+    recommendation = 'Escalate immediately, dispatch a field team, and provide the citizen with a response timeline.';
+  } else if (priorityScore >= 65) {
+    recommendation = 'Prioritize departmental review and share an estimated action timeline with the citizen.';
+  } else if (duplicateCount > 0) {
+    recommendation = 'Review nearby matching reports together and coordinate a single area-level response.';
+  }
+
+  return {
+    complaint_id: complaint.id,
+    reference_code: complaint.reference_code,
+    title: complaint.title,
+    classification: {
+      category_id: classification.category?.id || null,
+      category_name: classification.category?.name || 'Unclassified',
+      method: classification.method,
+      confidence: classification.confidence,
+      matched_keywords: classification.matched_keywords,
+    },
+    priority_score: priorityScore,
+    risk_level: riskLevel,
+    possible_duplicates: duplicateCount,
+    duplicate_radius_meters: 220,
+    signals: {
+      configured_priority: complaint.priority,
+      age_days: ageDays,
+      urgent_keywords: matchedUrgentKeywords,
+    },
+    recommendation,
+  };
+}
+
+module.exports = {
+  getSummary,
+  getByCategory,
+  getByDepartment,
+  getResolutionTime,
+  getTrends,
+  getHotspots,
+  analyzeComplaint,
+};

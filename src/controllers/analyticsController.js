@@ -1,8 +1,10 @@
 // src/controllers/analyticsController.js
 
 const analyticsService = require('../services/analyticsService');
+const complaintModel = require('../models/complaintModel');
 const asyncHandler = require('../utils/asyncHandler');
 const { success } = require('../utils/apiResponse');
+const { ApiError } = require('../middleware/errorHandler');
 
 // Officials only ever see their own department's numbers; admins can see
 // everything, or narrow with ?department_id= if they want.
@@ -56,4 +58,20 @@ const hotspots = asyncHandler(async (req, res) => {
   return success(res, 200, 'Hotspots fetched', { hotspots: data });
 });
 
-module.exports = { summary, byCategory, byDepartment, resolutionTime, trends, hotspots };
+// GET /api/analytics/ai-analysis/:complaintId
+const aiAnalysis = asyncHandler(async (req, res) => {
+  const complaint = await complaintModel.findById(req.params.complaintId);
+  if (!complaint) throw new ApiError(404, 'Complaint not found.');
+
+  if (
+    req.user.role === 'department_official' &&
+    complaint.department_id !== req.user.department_id
+  ) {
+    throw new ApiError(403, 'You can only analyze complaints routed to your department.');
+  }
+
+  const analysis = await analyticsService.analyzeComplaint(complaint.id);
+  return success(res, 200, 'AI-assisted complaint analysis completed', { analysis });
+});
+
+module.exports = { summary, byCategory, byDepartment, resolutionTime, trends, hotspots, aiAnalysis };
