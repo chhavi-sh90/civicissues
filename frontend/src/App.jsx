@@ -21,6 +21,14 @@ const statusLabels = {
   resolved: "Resolved",
   rejected: "Rejected",
 };
+const statusTransitions = {
+  submitted: ["under_review", "in_progress", "resolved", "rejected"],
+  under_review: ["in_progress", "resolved", "rejected"],
+  assigned: ["in_progress", "rejected"],
+  in_progress: ["resolved", "rejected"],
+  resolved: [],
+  rejected: [],
+};
 const initialAuthForm = { full_name: "", email: "", phone: "", password: "" };
 const initialReportForm = { title: "", description: "", category_id: "", address: "" };
 
@@ -34,8 +42,7 @@ function readStoredSession() {
 }
 
 function complaintEndpointFor(user) {
-  if (user?.role === "department_official") return "/complaints/assigned?limit=100";
-  if (user?.role === "admin") return "/complaints?limit=100";
+  if (user?.role !== "citizen") return "/complaints?limit=100";
   return "/complaints/my?limit=100";
 }
 
@@ -63,7 +70,55 @@ function Message({ error, notice }) {
   return null;
 }
 
-function ComplaintCard({ complaint }) {
+function AuthorityStatusForm({ complaint, onUpdate, busy }) {
+  const options = statusTransitions[complaint.status] || [];
+  const [newStatus, setNewStatus] = useState(options[0] || "");
+  const [remarks, setRemarks] = useState("");
+  const [rejectionReason, setRejectionReason] = useState("");
+
+  if (options.length === 0) {
+    return <div className="workflow-complete">This complaint workflow is complete.</div>;
+  }
+
+  function submitUpdate(event) {
+    event.preventDefault();
+    onUpdate(complaint.id, {
+      new_status: newStatus,
+      remarks,
+      ...(newStatus === "rejected" ? { rejection_reason: rejectionReason } : {}),
+    });
+  }
+
+  return (
+    <form className="authority-update" onSubmit={submitUpdate}>
+      <div className="authority-update-heading">
+        <strong>Authority action</strong>
+        <span>The citizen will see this status and note.</span>
+      </div>
+      <div className="authority-fields">
+        <label>
+          Next status
+          <select value={newStatus} onChange={(event) => setNewStatus(event.target.value)} required>
+            {options.map((status) => <option key={status} value={status}>{statusLabel(status)}</option>)}
+          </select>
+        </label>
+        <label className="remarks-field">
+          Update for citizen
+          <textarea value={remarks} onChange={(event) => setRemarks(event.target.value)} maxLength="500" rows="2" placeholder="Work completed, team dispatched, expected timeline…" required />
+        </label>
+        {newStatus === "rejected" && (
+          <label className="remarks-field">
+            Rejection reason
+            <input value={rejectionReason} onChange={(event) => setRejectionReason(event.target.value)} maxLength="255" placeholder="Explain why this issue cannot be accepted" required />
+          </label>
+        )}
+        <button type="submit" disabled={busy}>{busy ? "Updating…" : "Update citizen"}</button>
+      </div>
+    </form>
+  );
+}
+
+function ComplaintCard({ complaint, canManage, onUpdateStatus, busy }) {
   return (
     <article className="my-complaint-card">
       <div className="complaint-top">
@@ -74,12 +129,38 @@ function ComplaintCard({ complaint }) {
           <div className="complaint-meta">
             <span>Priority: {complaint.priority}</span>
             <span>Reported: {new Date(complaint.created_at).toLocaleDateString()}</span>
+            {canManage && <span>Citizen: {complaint.citizen_name}</span>}
+            {complaint.department_name && <span>Department: {complaint.department_name}</span>}
           </div>
         </div>
         <span className={`status-badge status-${complaint.status}`}>{statusLabel(complaint.status)}</span>
       </div>
       <p className="complaint-description">{complaint.description}</p>
+      {complaint.latest_remarks && (
+        <div className="authority-note"><strong>Latest authority update</strong><p>{complaint.latest_remarks}</p></div>
+      )}
+      {canManage && <AuthorityStatusForm key={`${complaint.id}-${complaint.status}`} complaint={complaint} onUpdate={onUpdateStatus} busy={busy} />}
     </article>
+  );
+}
+
+function NotificationPanel({ notifications, onMarkAllRead }) {
+  const unread = notifications.filter((item) => !item.is_read).length;
+  return (
+    <section className="notifications-card">
+      <div className="recent-header">
+        <div><h2>Authority Updates</h2><p>Status messages and information about your complaints</p></div>
+        {unread > 0 && <button onClick={onMarkAllRead}>Mark all read ({unread})</button>}
+      </div>
+      {notifications.length === 0 ? (
+        <div className="notification-empty">No authority updates yet.</div>
+      ) : notifications.slice(0, 5).map((item) => (
+        <div className={`notification-item ${item.is_read ? "" : "unread"}`} key={item.id}>
+          <div className="notification-dot" />
+          <div><strong>{item.title}</strong><p>{item.message}</p><span>{new Date(item.created_at).toLocaleString()}</span></div>
+        </div>
+      ))}
+    </section>
   );
 }
 
@@ -95,18 +176,22 @@ function App() {
   const [photos, setPhotos] = useState([]);
   const [categories, setCategories] = useState([]);
   const [complaints, setComplaints] = useState([]);
+  const [notifications, setNotifications] = useState([]);
   const [submittedComplaint, setSubmittedComplaint] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [updatingId, setUpdatingId] = useState(null);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
 
   const loadPortalData = useCallback(async (activeToken, activeUser) => {
-    const [categoryData, complaintData] = await Promise.all([
+    const [categoryData, complaintData, notificationData] = await Promise.all([
       apiRequest("/categories", { token: activeToken }),
       apiRequest(complaintEndpointFor(activeUser), { token: activeToken }),
+      apiRequest("/notifications?limit=20", { token: activeToken }),
     ]);
     setCategories(categoryData.categories || []);
     setComplaints(complaintData.items || []);
+    setNotifications(notificationData.items || []);
   }, []);
 
   const logout = useCallback(() => {
@@ -115,6 +200,7 @@ function App() {
     setUser(null);
     setComplaints([]);
     setCategories([]);
+    setNotifications([]);
     setPage("login");
     setAuthMode("login");
     setError("");
@@ -220,6 +306,30 @@ function App() {
     }
   }
 
+  async function handleStatusUpdate(complaintId, update) {
+    setUpdatingId(complaintId);
+    setError("");
+    setNotice("");
+    try {
+      await apiRequest(`/complaints/${complaintId}/status`, { method: "PUT", token, body: update });
+      await loadPortalData(token, user);
+      setNotice("Complaint status updated and the citizen was notified.");
+    } catch (requestError) {
+      setError(requestError.message);
+    } finally {
+      setUpdatingId(null);
+    }
+  }
+
+  async function handleMarkAllRead() {
+    try {
+      await apiRequest("/notifications/read-all", { method: "PUT", token });
+      setNotifications((items) => items.map((item) => ({ ...item, is_read: 1 })));
+    } catch (requestError) {
+      setError(requestError.message);
+    }
+  }
+
   function switchAuthMode(mode) {
     setAuthMode(mode);
     setError("");
@@ -236,7 +346,7 @@ function App() {
         <div className="login-card">
           <div className="login-logo">C</div>
           <h1>CivicConnect</h1>
-          <p>{authMode === "register" ? "Create your citizen account" : "Citizen Issue Reporting System"}</p>
+          <p>{authMode === "register" ? "Create your citizen account" : "Citizen & Authority Portal"}</p>
           <Message error={error} notice={notice} />
           <form onSubmit={handleAuthSubmit}>
             {authMode === "register" && (
@@ -269,7 +379,7 @@ function App() {
       <PortalLayout page={page} setPage={setPage} user={user} onLogout={logout}>
         <Message error={error} notice={notice} />
         <div className="welcome-section">
-          <div><span className="welcome-label">{user.role.replaceAll("_", " ").toUpperCase()} PORTAL</span><h2>Welcome, {user.full_name} 👋</h2><p>Track civic issues and help make your neighbourhood better.</p></div>
+          <div><span className="welcome-label">{user.role === "citizen" ? "CITIZEN PORTAL" : "AUTHORITY PORTAL"}</span><h2>Welcome, {user.full_name} 👋</h2><p>{user.role === "citizen" ? "Report issues and follow updates from civic authorities." : "Review department issues and keep citizens informed."}</p></div>
           <div className="toolbar-actions">
             <button className="secondary-button" onClick={handleRefresh} disabled={loading}>Refresh</button>
             {user.role === "citizen" && <button className="primary-report-button" onClick={() => setPage("report")}>+ Report an Issue</button>}
@@ -289,6 +399,7 @@ function App() {
             <button className="action-button" onClick={() => setPage("nearby")}>📍 Open Issue Map</button>
           </div>
         </div>
+        {user.role === "citizen" && <NotificationPanel notifications={notifications} onMarkAllRead={handleMarkAllRead} />}
         <div className="recent-section">
           <div className="recent-header"><div><h2>Recent Complaints</h2><p>Latest civic issues in your portal</p></div><button onClick={() => setPage("complaints")}>View All</button></div>
           {complaints.length === 0 ? (
@@ -381,14 +492,22 @@ function App() {
   return (
     <PortalLayout page="complaints" setPage={setPage} user={user} onLogout={logout}>
       <div className="page-toolbar">
-        <div className="page-title"><h2>{user.role === "citizen" ? "My Complaints" : "Complaints"}</h2><p>Track civic issue status and priority.</p></div>
+        <div className="page-title"><h2>{user.role === "citizen" ? "My Complaints" : "Authority Work Queue"}</h2><p>{user.role === "citizen" ? "Track civic issue status and authority updates." : "Change issue status and send clear updates to citizens."}</p></div>
         <button className="secondary-button" onClick={handleRefresh} disabled={loading}>Refresh</button>
       </div>
       <Message error={error} notice={notice} />
       <div className="content-card complaints-list">
         {complaints.length === 0 ? (
           <div className="complaint-empty"><div className="empty-icon">✓</div><h3>No complaints yet</h3><p>Submitted civic issues will appear here.</p>{user.role === "citizen" && <button onClick={() => setPage("report")}>Report an Issue</button>}</div>
-        ) : complaints.map((complaint) => <ComplaintCard key={complaint.id} complaint={complaint} />)}
+        ) : complaints.map((complaint) => (
+          <ComplaintCard
+            key={complaint.id}
+            complaint={complaint}
+            canManage={user.role !== "citizen"}
+            onUpdateStatus={handleStatusUpdate}
+            busy={updatingId === complaint.id}
+          />
+        ))}
       </div>
     </PortalLayout>
   );

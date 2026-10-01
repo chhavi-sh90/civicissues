@@ -1,6 +1,7 @@
 // src/controllers/complaintController.js
 
 const complaintModel = require('../models/complaintModel');
+const categoryModel = require('../models/categoryModel');
 const imageModel = require('../models/imageModel');
 const statusHistoryModel = require('../models/statusHistoryModel');
 const assignmentModel = require('../models/assignmentModel'); // used for permission checks; built in Part 6
@@ -11,10 +12,11 @@ const asyncHandler = require('../utils/asyncHandler');
 const { success } = require('../utils/apiResponse');
 const { ApiError } = require('../middleware/errorHandler');
 
-// Valid forward transitions. Rejection is allowed from any pre-resolution state.
+// Department authorities can move a complaint forward without a separate
+// admin-assignment step. Legacy "assigned" complaints remain supported.
 const VALID_TRANSITIONS = {
-  submitted: ['under_review', 'rejected'],
-  under_review: ['assigned', 'rejected'],
+  submitted: ['under_review', 'in_progress', 'resolved', 'rejected'],
+  under_review: ['in_progress', 'resolved', 'rejected'],
   assigned: ['in_progress', 'rejected'],
   in_progress: ['resolved', 'rejected'],
   resolved: [], // terminal
@@ -25,13 +27,15 @@ const VALID_TRANSITIONS = {
 const create = asyncHandler(async (req, res) => {
   const { title, description, category_id, latitude, longitude, address } = req.body;
 
-  // Auto-categorization is advisory-only here: the citizen already chose
-  // category_id via the client's category picker (matches the PPT's
-  // "Report" step). We still run the categorizer to (a) pick a sensible
-  // default department and (b) demonstrate the required AI/ML hook, but
-  // we trust the citizen's explicit category_id as the source of truth.
-  const { category } = await categorizationService.suggestCategory({ title, description });
-  const departmentId = category ? category.default_department_id : null;
+  const selectedCategory = await categoryModel.findById(category_id);
+  if (!selectedCategory || !selectedCategory.is_active) {
+    throw new ApiError(400, 'Please select an active complaint category.');
+  }
+
+  // Keep the optional categorizer hook warm for analytics/future suggestions,
+  // but route the complaint from the category explicitly selected by the citizen.
+  await categorizationService.suggestCategory({ title, description });
+  const departmentId = selectedCategory.default_department_id;
 
   const imageUrls = [];
   if (req.files && req.files.length > 0) {
@@ -47,7 +51,7 @@ const create = asyncHandler(async (req, res) => {
     description,
     category_id,
     department_id: departmentId,
-    priority: category ? category.default_priority : 'medium',
+    priority: selectedCategory.default_priority || 'medium',
     latitude,
     longitude,
     address,
@@ -64,7 +68,8 @@ async function assertCanAccess(req, complaint) {
   if (req.user.role === 'citizen' && complaint.citizen_id === req.user.id) return;
   if (req.user.role === 'department_official') {
     const isAssigned = await assignmentModel.isCurrentlyAssigned(complaint.id, req.user.id);
-    if (isAssigned) return;
+    const isInDepartment = complaint.department_id === req.user.department_id;
+    if (isAssigned || isInDepartment) return;
   }
   throw new ApiError(403, 'You do not have permission to access this complaint.');
 }
@@ -133,7 +138,7 @@ const assignedToMe = asyncHandler(async (req, res) => {
   return success(res, 200, 'Assigned complaints fetched', result);
 });
 
-// PUT /api/complaints/:id/status  (assigned department_official or admin)
+// PUT /api/complaints/:id/status  (department authority or admin)
 const updateStatus = asyncHandler(async (req, res) => {
   const { new_status, remarks, proof_image_url, rejection_reason } = req.body;
 
@@ -142,11 +147,12 @@ const updateStatus = asyncHandler(async (req, res) => {
 
   if (req.user.role === 'department_official') {
     const isAssigned = await assignmentModel.isCurrentlyAssigned(complaint.id, req.user.id);
-    if (!isAssigned) {
-      throw new ApiError(403, 'You can only update complaints currently assigned to you.');
+    const isInDepartment = complaint.department_id === req.user.department_id;
+    if (!isAssigned && !isInDepartment) {
+      throw new ApiError(403, 'You can only update complaints routed to your department.');
     }
   } else if (req.user.role !== 'admin') {
-    throw new ApiError(403, 'Only an assigned official or admin can update complaint status.');
+    throw new ApiError(403, 'Only a department authority or admin can update complaint status.');
   }
 
   const allowedNext = VALID_TRANSITIONS[complaint.status] || [];
@@ -180,7 +186,7 @@ const updateStatus = asyncHandler(async (req, res) => {
   // Notify the citizen — best-effort; failures are logged, never thrown
   // back to the caller (a notification failure shouldn't fail the
   // status update itself).
-  notificationService.notifyStatusChange(updated, new_status).catch(() => {});
+  notificationService.notifyStatusChange(updated, new_status, remarks).catch(() => {});
 
   return success(res, 200, 'Complaint status updated', { complaint: updated });
 });

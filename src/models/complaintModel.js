@@ -10,6 +10,17 @@ const BASE_SELECT = `
     c.department_id, dep.name AS department_name,
     c.status, c.priority, c.latitude, c.longitude, c.address,
     c.rejection_reason, c.resolved_at, c.created_at, c.updated_at,
+    (SELECT h.remarks
+       FROM complaint_status_history h
+       JOIN users history_user ON history_user.id = h.changed_by
+      WHERE h.complaint_id = c.id
+        AND history_user.role IN ('department_official', 'admin')
+        AND h.remarks IS NOT NULL
+      ORDER BY h.id DESC LIMIT 1) AS latest_remarks,
+    (SELECT h.created_at
+       FROM complaint_status_history h
+      WHERE h.complaint_id = c.id
+      ORDER BY h.id DESC LIMIT 1) AS latest_status_at,
     u.full_name AS citizen_name, u.email AS citizen_email
   FROM complaints c
   JOIN categories cat ON cat.id = c.category_id

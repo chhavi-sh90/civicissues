@@ -1446,3 +1446,140 @@ body {
   .toolbar-actions button { width: 100%; }
   .login-card { padding: 28px 22px; }
 }
+
+/* ================= AUTHORITY WORKFLOW ================= */
+
+.authority-note {
+  margin-top: 14px;
+  padding: 14px 16px;
+  border-left: 4px solid #0b6b43;
+  border-radius: 8px;
+  background: #eff8f3;
+}
+
+.authority-note strong {
+  color: #0b6b43;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+
+.authority-note p {
+  margin: 5px 0 0;
+  color: #344054;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.authority-update {
+  margin-top: 18px;
+  padding: 18px;
+  border: 1px solid #cfe3d8;
+  border-radius: 13px;
+  background: #f7fbf9;
+}
+
+.authority-update-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.authority-update-heading strong { color: #172b22; font-size: 14px; }
+.authority-update-heading span { color: #667085; font-size: 12px; }
+
+.authority-fields {
+  display: grid;
+  grid-template-columns: minmax(180px, 0.8fr) minmax(260px, 1.8fr) auto;
+  align-items: end;
+  gap: 12px;
+}
+
+.authority-fields label {
+  color: #344054;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.authority-fields select,
+.authority-fields textarea,
+.authority-fields input {
+  width: 100%;
+  margin: 6px 0 0;
+  padding: 10px 12px;
+  border: 1px solid #cfd9d4;
+  border-radius: 9px;
+  background: #fff;
+  color: #172b22;
+  box-sizing: border-box;
+}
+
+.authority-fields textarea { min-height: 42px; resize: vertical; }
+
+.authority-fields button {
+  min-height: 42px;
+  padding: 10px 16px;
+  border: 0;
+  border-radius: 9px;
+  background: #0b6b43;
+  color: #fff;
+  font-weight: 750;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.workflow-complete {
+  margin-top: 16px;
+  padding: 12px 14px;
+  border-radius: 9px;
+  background: #f2f4f7;
+  color: #667085;
+  font-size: 13px;
+}
+
+.notifications-card {
+  margin-top: 30px;
+  padding: 26px;
+  border: 1px solid #e5e9e7;
+  border-radius: 18px;
+  background: #fff;
+  box-shadow: 0 7px 22px rgba(0, 0, 0, 0.055);
+}
+
+.notification-item {
+  display: flex;
+  gap: 12px;
+  padding: 14px 4px;
+  border-top: 1px solid #edf1ef;
+}
+
+.notification-item.unread { background: linear-gradient(90deg, #f2fbf6, transparent); }
+
+.notification-dot {
+  flex: 0 0 8px;
+  width: 8px;
+  height: 8px;
+  margin-top: 6px;
+  border-radius: 50%;
+  background: #b8c5bf;
+}
+
+.notification-item.unread .notification-dot { background: #0b6b43; }
+.notification-item strong { color: #172b22; font-size: 13px; }
+.notification-item p { margin: 4px 0; color: #475467; font-size: 13px; line-height: 1.45; }
+.notification-item span { color: #98a2b3; font-size: 11px; }
+.notification-empty { padding: 20px 0 4px; color: #667085; font-size: 13px; }
+
+@media (max-width: 1000px) {
+  .authority-fields { grid-template-columns: 1fr 2fr; }
+  .authority-fields button { grid-column: 1 / -1; }
+}
+
+@media (max-width: 650px) {
+  .authority-update-heading { align-items: flex-start; flex-direction: column; }
+  .authority-fields { grid-template-columns: 1fr; }
+  .authority-fields button { grid-column: auto; width: 100%; }
+  .notifications-card { padding: 20px; }
+}

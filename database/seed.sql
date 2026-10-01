@@ -54,11 +54,11 @@ INSERT INTO users (full_name, email, phone, password_hash, role, department_id) 
 -- Report -> Review -> Assign -> Resolve -> Close workflow via Postman
 -- ---------------------------------------------------------------------
 INSERT INTO complaints
-  (reference_code, citizen_id, title, description, category_id, status, priority, latitude, longitude, address)
+  (reference_code, citizen_id, title, description, category_id, department_id, status, priority, latitude, longitude, address)
 VALUES
 ('CC-2026-000001', 4, 'Large pothole on MG Road',
  'A large, dangerous pothole has formed near the MG Road junction, causing traffic and risk to two-wheelers.',
- 1, 'submitted', 'high', 28.6448, 77.2167, 'MG Road, near Ward 12, Delhi');
+ 1, 1, 'submitted', 'high', 28.6448, 77.2167, 'MG Road, near Ward 12, Delhi');
 
 INSERT INTO complaint_status_history (complaint_id, changed_by, old_status, new_status, remarks)
 VALUES (1, 4, NULL, 'submitted', 'Complaint created by citizen');

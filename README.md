@@ -10,6 +10,24 @@ The project combines:
 - JWT authentication and role-based access control
 - Leaflet/OpenStreetMap location picker and issue map
 
+## Two user portals
+
+### Citizen
+
+- Registers and logs in from the public website
+- Reports an issue with category, description, photos, address, and map location
+- Tracks status and reads the latest authority note
+- Receives an in-app notification whenever an authority changes the status
+
+### Authority
+
+- Logs in with a pre-created `department_official` or `admin` account
+- Sees the work queue for their department (admins see all departments)
+- Changes an issue to Under Review, In Progress, Resolved, or Rejected
+- Sends a required update note, plus a rejection reason when applicable
+
+Citizen registration never creates an authority account. Authority accounts are seeded for the demo or created by an administrator.
+
 ## Project structure
 
 ```text

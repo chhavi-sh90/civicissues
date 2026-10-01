@@ -103,12 +103,14 @@ async function notifyUser({ user_id, complaint_id, title, message, type }) {
 }
 
 /** Notifies a citizen that their complaint's status changed. */
-async function notifyStatusChange(complaint, newStatus) {
+async function notifyStatusChange(complaint, newStatus, remarks) {
+  const readableStatus = newStatus.replace(/_/g, ' ');
+  const remarksSuffix = remarks ? ` Authority note: ${remarks}` : '';
   return notifyUser({
     user_id: complaint.citizen_id,
     complaint_id: complaint.id,
     title: `Complaint ${complaint.reference_code} updated`,
-    message: `Your complaint "${complaint.title}" is now "${newStatus}".`,
+    message: `Your complaint "${complaint.title}" is now "${readableStatus}".${remarksSuffix}`,
     type: 'status_change',
   });
 }

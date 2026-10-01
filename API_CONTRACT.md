@@ -64,12 +64,12 @@ Note: citizens self-register via `/auth/register`. `department_official` and `ad
 | POST | `/complaints` | citizen | `multipart/form-data`: `title, description, category_id, latitude, longitude, address?, images[]` | 201, complaint with `reference_code` | 400, 401, 422 (bad file type/size) |
 | GET | `/complaints` | Any authenticated (scoped — see below) | query: `status, category_id, department_id, page, limit, search` | 200, paginated list | 401 |
 | GET | `/complaints/:id` | Owner citizen / assigned official / admin | — | 200, full complaint incl. images + status history | 401, 403, 404 |
-| PUT | `/complaints/:id/status` | department_official (assigned) / admin | `{ new_status, remarks?, proof_image_url? }` | 200, updated complaint | 400 (invalid transition), 401, 403, 404 |
+| PUT | `/complaints/:id/status` | department_official (same department) / admin | `{ new_status, remarks?, proof_image_url?, rejection_reason? }` | 200, updated complaint + citizen notification | 400 (invalid transition), 401, 403, 404 |
 | GET | `/complaints/:id/history` | Owner citizen / assigned official / admin | — | 200, status history array | 401, 403, 404 |
 | GET | `/complaints/my` | citizen | query: `status, page, limit` | 200, own complaints | 401 |
 | GET | `/complaints/assigned` | department_official | query: `status, page, limit` | 200, complaints assigned to this official | 401, 403 |
 
-**Scoping rule for `GET /complaints`:** citizens see only their own; officials see only complaints assigned to their department; admins see all. This is enforced server-side in the controller, not left to the client.
+**Scoping rule for `GET /complaints`:** citizens see only their own; officials see complaints routed to their department; admins see all. This is enforced server-side in the controller, not left to the client.
 
 **Valid status transitions** (enforced server-side):
 `submitted → under_review → assigned → in_progress → resolved`
